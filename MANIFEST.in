@@ -1,0 +1,8 @@
+include README.md SPEC.md CONTRIBUTING.md CITATION.cff CHANGELOG.md THIRD-PARTY.md SECURITY.md LICENSE LICENSE-docs Makefile
+recursive-include docs *.md
+recursive-include profiles *.json
+recursive-include examples *.md *.json *.txt
+recursive-include tests *.py *.md *.json *.txt
+recursive-include src/champollion/profiles *.json
+recursive-include scripts *.py
+global-exclude *.pyc *.pyo .DS_Store

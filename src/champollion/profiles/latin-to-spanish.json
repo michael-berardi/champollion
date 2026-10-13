@@ -1,0 +1,46 @@
+{
+  "profile": "champollion-profile/1",
+  "name": "latin-to-spanish",
+  "description": "Independent contemporary literary and plain Spanish editions made directly from Latin.",
+  "source": {"tag": "la", "name": "Latin"},
+  "target": {"tag": "es", "name": "Spanish"},
+  "target_locale": "es",
+  "registers": [
+    {
+      "id": "literaria",
+      "label": "Literaria",
+      "required": true,
+      "alignment": "same-units",
+      "sections": ["literaria"]
+    },
+    {
+      "id": "clara",
+      "label": "Clara",
+      "required": true,
+      "alignment": "same-units",
+      "sections": ["clara"]
+    }
+  ],
+  "checks": {
+    "structure": true,
+    "coverage": true,
+    "numbering": true,
+    "copy_ratio": null,
+    "speech_marks": [],
+    "archaisms": "off",
+    "plain_archaisms": false,
+    "spelling_profile": null,
+    "name_table": null,
+    "debris": true,
+    "ellipsis": "warn",
+    "short_unit_ratio": null,
+    "min_source_chars": 1500,
+    "min_units_for_ratio": 3,
+    "min_sentences": 8,
+    "min_sentence_chars": 40
+  },
+  "rights": {
+    "allowed": ["public-domain", "cc-by-4.0", "cc-by-sa-4.0"]
+  },
+  "exceptions": []
+}

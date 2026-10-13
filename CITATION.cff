@@ -1,0 +1,27 @@
+cff-version: 1.2.0
+message: "Please cite the Champollion protocol using this metadata; cite source editions and translators separately."
+title: "Champollion protocol"
+authors:
+  - family-names: Berardi
+    given-names: Michael
+version: 1.0.0
+date-released: "2026-10-13"
+url: "https://github.com/michael-berardi/champollion"
+repository-code: "https://github.com/michael-berardi/champollion"
+license: CC-BY-4.0
+keywords:
+  - translation protocol
+  - source provenance
+  - textual alignment
+  - independent registers
+  - offline verification
+  - recorded review
+abstract: >-
+  Champollion specifies a method for storing canonical original-language sources,
+  preserving source units and form, producing at least two independent direct-source
+  registers, checking mechanical requirements, and retaining judgment and provenance
+  records. Its Python reference implementation uses the standard library and local
+  evidence without network calls at check time. Champollion does not translate texts
+  or certify sense. This citation describes the CC BY 4.0 specification; the reference
+  implementation is licensed separately under MIT. The version and release-date
+  metadata do not constitute publication approval or a conformance claim for any work.

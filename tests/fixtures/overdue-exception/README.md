@@ -1,0 +1,1 @@
+Expired tolerated archaism, motivated by VER-12 rather than undated legacy baselines. All text is original synthetic CC0-1.0 test data; 2026-01-01 is a fixed test input, not an acquisition or review claim.

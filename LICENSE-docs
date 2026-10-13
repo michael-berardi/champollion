@@ -1,0 +1,9 @@
+# Documentation license
+
+Copyright 2026 Michael Berardi. SPEC.md and the documentation in docs/ are licensed under [Creative Commons Attribution 4.0 International (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/).
+
+You may share and adapt that material for any purpose, including commercially. You must give appropriate credit, link to the license, and indicate changes, without implying endorsement. You may not impose legal terms or technological measures that restrict others from doing what the license permits. The license does not require adaptations to use the same license. The linked license governs these permissions and requirements.
+
+Code in this repository is licensed under the MIT license in LICENSE. Source texts and other third-party material retain their own rights; see THIRD-PARTY.md.
+
+Champollion enforces mechanical requirements and records judgement. It does not translate or certify sense.

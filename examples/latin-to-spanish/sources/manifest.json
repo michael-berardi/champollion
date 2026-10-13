@@ -1,0 +1,110 @@
+{
+  "providers": [
+    {
+      "id": "champollion-example-authoring",
+      "name": "Champollion project example authoring",
+      "scope": "Only the complete newly authored micro-work Lucerna communis and its example Spanish registers.",
+      "originals_offered": [
+        "Latin original micro-work"
+      ],
+      "translations_offered": [
+        "Spanish literaria draft",
+        "Spanish clara draft"
+      ],
+      "access_method": "Shipped local UTF-8 files; no remote provider export exists for this original composition.",
+      "license": "CC0-1.0 (express project dedication, CC0.md)",
+      "fetch_recipe": "No network fetch: use the shipped sources/raw/lucerna-communis.txt bytes unchanged and verify the recorded SHA-256."
+    }
+  ],
+  "records": [
+    {
+      "id": "lucerna-communis",
+      "provider": "champollion-example-authoring",
+      "edition": "Champollion original example edition 1; complete six-line prose micro-fable",
+      "catalogue_identifier": "champollion-original-lucerna-communis-1",
+      "revision": "champollion-original-lucerna-communis-1/sha256:962eb3e36ced39a06fb491d0f47eee0da6ae062dcdeaad4f5728cb6fdacdcafa",
+      "sha256": "962eb3e36ced39a06fb491d0f47eee0da6ae062dcdeaad4f5728cb6fdacdcafa",
+      "raw_snapshot": "sources/raw/lucerna-communis.txt",
+      "url": "urn:champollion:example:lucerna-communis:1",
+      "rights": {
+        "work": "public-domain",
+        "transcription": "public-domain"
+      },
+      "rights_evidence": {
+        "work": {
+          "instrument": "CC0-1.0",
+          "instrument_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "evidence": "CC0.md",
+          "basis": "New composition expressly dedicated by this project, to the extent rights are held; not antiquity or a third-party edition.",
+          "profile_classification": "public-domain",
+          "attribution_required": false,
+          "share_alike": false,
+          "legal_review": "not performed"
+        },
+        "transcription": {
+          "instrument": "CC0-1.0",
+          "instrument_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "evidence": "CC0.md",
+          "basis": "New composition expressly dedicated by this project, to the extent rights are held; not antiquity or a third-party edition.",
+          "profile_classification": "public-domain",
+          "attribution_required": false,
+          "share_alike": false,
+          "legal_review": "not performed"
+        }
+      },
+      "attribution": "Champollion project; AI-generated original micro-work and direct-source Spanish drafts.",
+      "authored_date": "2026-10-13",
+      "provenance_statement_date": "2026-10-13",
+      "acquisition": "Authored locally for this example; no remote source text was fetched or used.",
+      "completeness": "complete",
+      "source_scope": "whole-work",
+      "boundaries": "Title followed by all six numbered prose lines. This is the entire newly authored work, not selected clauses from another work.",
+      "lost_material": "None: this composition was authored as these six lines.",
+      "cleaning": {
+        "rule": "Decode the raw UTF-8 bytes; remove only the first title line and the following empty line. Keep every remaining byte-equivalent character and line, including source markers and quotation marks; place under the Lucerna communis unit in Original.",
+        "changes": "No normalization, corrections, witness repairs, or omissions within the six source lines."
+      },
+      "numbering": {
+        "notation": "leading-number",
+        "line_for_line": true
+      },
+      "unit_evidence": [
+        {
+          "unit": "Lucerna communis",
+          "first_marker": "1.",
+          "last_marker": "6.",
+          "ordered_markers": [
+            "1.",
+            "2.",
+            "3.",
+            "4.",
+            "5.",
+            "6."
+          ],
+          "source_lines": 6,
+          "expected_target_lines_per_register": 6
+        }
+      ],
+      "aids": [],
+      "repair_witnesses": [],
+      "register_definitions": {
+        "literaria": "Complete direct-source contemporary literary Spanish preserving imagery, rhetorical structure, distinctions, and cadence.",
+        "clara": "Complete independent direct-source Spanish with familiar contemporary words and direct syntax, without summaries or added explanation."
+      },
+      "contributions": [
+        {
+          "contributor": "Champollion Latin-to-Spanish task assistant (AI)",
+          "contribution": "Original Latin composition and two separately composed direct-source Spanish drafts.",
+          "attestation": "The texts were generated for this example from the authored Latin, with all six numbered lines retained; neither Spanish register was produced by editing the other. No third-party translation, repair witness, or comprehension aid was consulted.",
+          "limitations": "Both passes were made by the same assistant in one session, not isolated collaborator dispatches. This production statement is not an independent independence/sense review."
+        }
+      ],
+      "edition_drafts": {
+        "literaria": "editions/literaria.md",
+        "clara": "editions/clara.md"
+      },
+      "reviews": [],
+      "publication_status": "Draft; judgement and read-aloud review absent"
+    }
+  ]
+}
