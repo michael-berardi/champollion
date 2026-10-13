@@ -140,7 +140,7 @@ Disabled heuristics must remain visible in reports. They do not waive independen
 |---|---|
 | `code` | Nonempty stable uppercase finding code. |
 | `work` | Nonempty work slug. |
-| `unit` | Nonempty exact unit title. A work-level exception uses the work-level location reported by the checker; do not infer wildcard matching. |
+| `unit` | Nonempty exact unit title. Version 1 supports unit-level exceptions only; work-level provenance/source blockers cannot be waived. Do not infer wildcard matching. |
 | `owner` | Nonempty accountable person or project role. |
 | `reason` | Nonempty explanation of the tolerated finding. |
 | `recorded` | String containing a valid Gregorian date, `YYYY-MM-DD`. |
