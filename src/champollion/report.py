@@ -8,6 +8,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any, Iterable, List
 
+from . import __version__
 from .checks import run_checks, sort_findings
 from .findings import ChampollionError, Finding, format_finding
 from .format import parse_work
@@ -200,7 +201,7 @@ def build_report(works: Iterable[Any], profile: Any, root: str, today: str) -> d
     counts = {"works": len(documents), "errors": errors, "warnings": warnings, "exceptions": len(exceptions),
               "exception_debt": len(exceptions), "overdue": sum(e["overdue"] for e in exceptions),
               "unmatched_exceptions": sum(not e["matched"] for e in exceptions)}
-    return {"protocol_version": VERSION, "checker_version": VERSION, "run_date": today, "root": str(base),
+    return {"protocol_version": VERSION, "checker_version": __version__, "run_date": today, "root": str(base),
             "profile": {"name": profile.name, "path": str(profile.path), "fingerprint": profile.fingerprint,
                         "settings": profile_json(profile)}, "works": work_records, "findings": rows,
             "counts": counts, "exceptions": exceptions, "incomplete": False,

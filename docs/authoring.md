@@ -26,10 +26,10 @@ champollion init .
 champollion source add --id sunrise --file original.txt --provider local --edition "Sunrise teaching edition" --revision sunrise-v1 --rights public-domain --note "Original teaching text from docs/authoring.md; no cleaning changes."
 ```
 
-Use the complete `profiles/generic.json` from a tagged checkout as your `champollion.json`. For this English exercise, change the `literal` register's `id` to `musean`, `label` to `Musean`, and `sections` to `["Musean"]`. Set the `plain` register's `label` to `Plain English` and `sections` to `["Plain English"]`. Keep both required with `same-units` alignment. Set `target` to `{"tag":"en","name":"English"}`. Keep every required check field; do not add an undeclared register-definition field. Use the Musean and Plain definitions below as an editorial record (REG-1, REG-4; mechanical declaration, judgment of definitions).
+Edit the project-local `profiles/generic.json` created by `init`. Keep `champollion.json` as the project configuration pointing at that file; do not replace the configuration with a profile. For this English exercise, change the `literal` register's `id` to `musean`, `label` to `Musean`, and `sections` to `["Musean"]`. Set the `plain` register's `label` to `Plain English` and `sections` to `["Plain English"]`. Keep both required with `same-units` alignment. Set `target` to `{"tag":"en","name":"English"}`. Keep every required check field; do not add an undeclared register-definition field. Use the Musean and Plain definitions below as an editorial record (REG-1, REG-4; mechanical declaration, judgment of definitions).
 
 ```sh
-champollion profile validate champollion.json
+champollion profile validate profiles/generic.json
 ```
 
 Generic disables English-derived copy and length heuristics. For this tiny exercise those heuristics would not prove independence anyway. Record the two-register production history and review instead.
@@ -98,6 +98,6 @@ For a difficult but readable passage, translate the most probable reading and re
 
 A reviewer will ask whether the selected source is complete, both registers came from it independently, every unit covers exactly its source, and names, numbers, technical terms, and uncertainty are handled honestly. Compare first and last source/target lines in every unit, read at least one unit aloud per register, spot-check terminology, and check sense (VER-10; judgment).
 
-Retain reviewer identity, person or model, actual review date, protocol version, work/units/registers, findings, and resolutions (VER-11; mechanical record completeness, judgment of resolutions). Retain each contributor's originality and source-form attestation (WRK-6; mechanical record presence, judgment of truthfulness).
+Retain reviewer identity, person or model, actual review date, protocol version, work/units/registers, findings, and resolutions. Bind the record to `work_sha256`, `source_sha256`, and `profile_fingerprint`; changed text or settings require fresh review (VER-11). Retain each contributor's originality and source-form attestation (WRK-6; mechanical record presence, judgment of truthfulness).
 
 After changes, rerun checks and update affected review evidence. Set `status: Published` only when no blocking finding or overdue exception remains and current required review records are present (VER-13; mechanical gate state and recorded judgment). Publish the work together with its source evidence and records through your project's own process—Champollion has no publish command and does not approve sense.

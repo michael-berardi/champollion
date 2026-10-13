@@ -4,11 +4,15 @@ Champollion is a translation protocol, a Python reference checker, and a set of 
 
 ## Install
 
-Install a tagged release, never the default branch. The pinned-tag form is:
+Install a tagged release in a virtual environment:
 
 ```sh
-python3 -m pip install "champollion-protocol @ git+https://github.com/michael-berardi/champollion.git@v1.0.0"
+python3 -m venv .venv
+. .venv/bin/activate
+python3 -m pip install "champollion-protocol @ git+https://github.com/michael-berardi/champollion.git@v1.0.1"
 ```
+
+On Windows, use `.venv\\Scripts\\Activate.ps1` to activate the environment.
 
 Installation needs access to the repository; checking does not. Profiles are included in the installed package. Clone the tagged repository to use its examples and documentation locally. There are no runtime dependencies outside the Python standard library.
 
@@ -69,9 +73,10 @@ A mechanical pass alone may be reported as a mechanical pass. Conformance is not
 - `profiles/`: Generic, Mouseia, and Latin-to-Spanish editorial profiles.
 - `src/champollion/`: standard-library reference implementation and Mouseia adapter.
 - `examples/latin-to-spanish/`: a small two-register example; `examples/mouseia/`: guidance for a separate checkout.
-- `tests/`: `unittest` checks, pass/fail fixtures, and oracle comparisons.
+- `tests/`: `unittest` checks, pass/fail fixtures, and compatibility/CLI contracts.
 - `CONTRIBUTING.md`, `CITATION.cff`, `THIRD-PARTY.md`, `CHANGELOG.md`: contribution, citation, licensing evidence, and changes.
-- `pyproject.toml`, `Makefile`, `SHA256SUMS`, `LICENSE`, `LICENSE-docs`: packaging, local checks, release integrity, and licenses.
+- `pyproject.toml`, `Makefile`, `LICENSE`, `LICENSE-docs`: packaging, local checks, and licenses.
+- `dist/`: generated wheel/source archives and `SHA256SUMS`, published as release assets.
 
 ## Mouseia and the reference implementation
 
@@ -91,4 +96,4 @@ Code is [MIT](LICENSE). The specification and documentation are [CC BY 4.0](LICE
 
 ## Status
 
-Version **1.0.0** supports **Python 3.9+**, uses the **standard library only** at runtime, and makes **no network calls at check time**. Releases are tagged and include package archives and **SHA256SUMS**.
+Implementation **1.0.1**, protocol **1.0.0**. Supports **Python 3.9+**, uses the **standard library only** at runtime, and makes **no network calls at check time**. Releases are tagged and include package archives and **SHA256SUMS**.

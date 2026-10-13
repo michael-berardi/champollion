@@ -6,6 +6,15 @@ Champollion enforces mechanical requirements and records judgement (VER-1). It d
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-10-13
+
+### Fixed
+
+- The first-work guide now edits the project-local profile without replacing project configuration.
+- Installation instructions create an isolated environment; release checksum paths are explicit.
+- Checker and vendored-package versions are independent of the unchanged 1.0.0 protocol version.
+- Added an executable first-work walkthrough regression.
+
 ## [1.0.0] - 2026-10-13
 
 ### Added

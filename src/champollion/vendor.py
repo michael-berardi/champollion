@@ -11,7 +11,7 @@ from typing import Optional
 from .findings import ChampollionError
 from .sources import read_json, write_json
 
-VERSION = "1.0.0"
+from . import __version__ as VERSION
 
 
 def profile_directory() -> Path:
