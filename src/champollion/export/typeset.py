@@ -298,7 +298,8 @@ body{margin:0;color:var(--ink);font-family:var(--serif);line-height:1.5;font-ker
 .opener.compact .k{font-size:6.8pt}
 .flow .unit{break-before:auto;margin-top:.06in}
 .lines.keep{break-inside:avoid}
-.opener{position:relative;text-align:center;padding:.9in 0 .4in;break-after:avoid}
+.opener{position:relative;text-align:center;padding:.9in 0 .4in;break-after:avoid;break-inside:avoid}
+.opener h2{break-inside:avoid}
 .opener .k{font:600 7.6pt/1 "Helvetica Neue",Helvetica,Arial,sans-serif;letter-spacing:.3em;text-transform:uppercase;color:var(--accent)}
 .opener h2{font:500 24pt/1.12 var(--display);font-variant-numeric:lining-nums;margin:.22in auto .1in;max-width:4in;text-wrap:balance;letter-spacing:.005em}
 .opener .ornament{margin-top:.2in}
