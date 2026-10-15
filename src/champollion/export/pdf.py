@@ -38,20 +38,18 @@ def _run(args: List[str], timeout: int) -> None:
     except subprocess.TimeoutExpired:
         try:
             os.killpg(proc.pid, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
-        proc.communicate()
-        raise ChampollionError(f"chrome did not finish within {timeout}s", cause="ENGINE-TIMEOUT")
-    finally:
-        try:  # helpers that outlive a clean exit
-            os.killpg(proc.pid, signal.SIGKILL)
         except (ProcessLookupError, PermissionError):
+            proc.kill()
+        try:
+            proc.communicate(timeout=15)
+        except subprocess.TimeoutExpired:
             pass
+        raise ChampollionError(f"chrome did not finish within {timeout}s", cause="ENGINE-TIMEOUT")
     if proc.returncode != 0:
         raise ChampollionError(f"chrome exited {proc.returncode}: {stderr.decode('utf-8', 'replace')[-400:]}", cause="ENGINE-FAILED")
 
 
-def html_to_pdf(html_text: str, out_pdf: str, chrome: str, timeout: int = 600, attempts: int = 3) -> None:
+def html_to_pdf(html_text: str, out_pdf: str, chrome: str, timeout: int = 600, attempts: int = 2) -> None:
     """Print to PDF; Chrome occasionally stalls on a layout pass, so a timeout is retried."""
     for attempt in range(1, attempts + 1):
         try:
@@ -90,20 +88,33 @@ def html_to_png(html_text: str, chrome: str, width: int, height: int, scale: flo
         return tmp_png.read_bytes()
 
 
-def pdf_pages(pdf: str) -> int:
-    exe = shutil.which("pdfinfo")
+def require_poppler() -> None:
+    """Name a missing poppler tool before any Chrome time is spent."""
+    for tool in ("pdfinfo", "pdftotext"):
+        if not shutil.which(tool):
+            raise ChampollionError(f"{tool} (poppler) not found; it numbers the contents and counts pages", cause="ENGINE-MISSING")
+
+
+def _poppler(tool: str, *args: str) -> str:
+    exe = shutil.which(tool)
     if not exe:
-        raise ChampollionError("pdfinfo (poppler) not found", cause="ENGINE-MISSING")
-    out = subprocess.run([exe, pdf], stdout=subprocess.PIPE, check=True).stdout.decode("utf-8", "replace")
-    return int(re.search(r"^Pages:\s+(\d+)", out, re.M).group(1))
+        raise ChampollionError(f"{tool} (poppler) not found", cause="ENGINE-MISSING")
+    proc = subprocess.run([exe, *args], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if proc.returncode != 0:
+        raise ChampollionError(f"{tool} failed: {proc.stderr.decode('utf-8', 'replace')[-300:]}", cause="ENGINE-FAILED")
+    return proc.stdout.decode("utf-8", "replace")
+
+
+def pdf_pages(pdf: str) -> int:
+    match = re.search(r"^Pages:\s+(\d+)", _poppler("pdfinfo", pdf), re.M)
+    if not match:
+        raise ChampollionError(f"pdfinfo reported no page count for {pdf}", cause="ENGINE-FAILED")
+    return int(match.group(1))
 
 
 def locate_markers(pdf: str, count: int) -> Dict[int, int]:
-    """Page number of each ``§§U<i>§§`` marker, via poppler's pdftotext (optional)."""
-    exe = shutil.which("pdftotext")
-    if not exe:
-        return {}
-    text = subprocess.run([exe, "-layout", pdf, "-"], stdout=subprocess.PIPE, check=True).stdout.decode("utf-8", "replace")
+    """Page number of each ``§§U<i>§§`` marker, via poppler's pdftotext."""
+    text = _poppler("pdftotext", "-layout", pdf, "-")
     found: Dict[int, int] = {}
     for page, chunk in enumerate(text.split("\f"), 1):
         for m in re.finditer(r"§§U(\d+)§§", chunk):

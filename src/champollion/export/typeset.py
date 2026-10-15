@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 
+from ..findings import ChampollionError
 from .model import Book, Unit
 from .refs import Block, Line, figure_of
 
@@ -178,11 +179,20 @@ def dek_ok(ln: Line, blocks: List[Block]) -> bool:
     return len(words) >= 2 and sum(1 for w in words if w[0].isupper()) / len(words) >= 0.7
 
 
+IMAGE_SUFFIXES = (".png", ".jpg", ".jpeg", ".gif", ".webp")
+
+
 def _asset(src: str, opts: Options) -> str:
+    """A figure's file: URI, only for images inside ``assets_dir``; anything else is refused by name."""
     if not src.startswith("/") or not opts.assets_dir:
         return ""
-    path = Path(opts.assets_dir) / src.lstrip("/")
-    return path.as_uri() if path.is_file() else ""
+    root = Path(opts.assets_dir).resolve()
+    path = (root / src.lstrip("/")).resolve()
+    if root not in path.parents or path.suffix.lower() not in IMAGE_SUFFIXES:
+        raise ChampollionError(f"figure {src!r} is outside the assets directory or not an image", cause="FIGURE-PATH")
+    if not path.is_file():
+        raise ChampollionError(f"figure {src!r} not found under {root}", cause="FIGURE-MISSING")
+    return path.as_uri()
 
 
 # ---------------------------------------------------------------- cover
@@ -219,12 +229,12 @@ COVER_CSS = '''
 .cv-body{position:absolute;inset:.42in .42in .42in .78in;padding:.62in .45in .5in;display:flex;flex-direction:column;justify-content:space-between}
 .cv-mark{color:var(--accent);font-size:1.05in;line-height:1;text-align:left;
  font-family:"Cormorant Garamond","Noto Sans Egyptian Hieroglyphs","Noto Sans Cuneiform","Noto Serif","Geeza Pro","Kohinoor Devanagari","Songti TC",serif}
-.cv-title{font-weight:500;font-size:.5in;line-height:1;margin:0;letter-spacing:.003em;text-wrap:balance;hyphens:manual;overflow-wrap:break-word}
+.cv-title{font-weight:500;font-variant-numeric:lining-nums;font-size:.5in;line-height:1;margin:0;letter-spacing:.003em;text-wrap:balance;hyphens:manual;overflow-wrap:break-word}
 .cv-title.mid{font-size:.42in}.cv-title.long{font-size:.34in;line-height:1.04}
 .cv-rule{width:.9in;height:.014in;background:var(--accent);margin:.3in 0 .22in;opacity:.85}
-.cv-author{font:600 .105in/1.35 "Helvetica Neue",Helvetica,Arial,sans-serif;letter-spacing:.2em;text-transform:uppercase;color:#d9cba9;margin:0}
-.cv-edition{font:italic 400 .17in/1.3 "Cormorant Garamond","EB Garamond",Georgia,serif;color:var(--accent);margin:.14in 0 0;filter:brightness(1.25)}
-.cv-pub{font:600 .082in/1 "Helvetica Neue",Helvetica,Arial,sans-serif;letter-spacing:.34em;text-transform:uppercase;color:rgba(242,233,213,.55);margin:0;text-align:left}
+.cv-author{font:600 .12in/1.35 "Helvetica Neue",Helvetica,Arial,sans-serif;letter-spacing:.2em;text-transform:uppercase;color:#d9cba9;margin:0}
+.cv-edition{font:italic 400 .2in/1.3 "Cormorant Garamond","EB Garamond",Georgia,serif;color:var(--accent);margin:.14in 0 0;filter:brightness(1.25)}
+.cv-pub{font:600 .09in/1 "Helvetica Neue",Helvetica,Arial,sans-serif;letter-spacing:.34em;text-transform:uppercase;color:rgba(242,233,213,.55);margin:0;text-align:left}
 '''
 
 
@@ -250,7 +260,7 @@ body{margin:0;color:var(--ink);font-family:var(--serif);line-height:1.5;font-ker
 .half-title .ht{font:500 18pt/1.15 var(--display);letter-spacing:.03em}
 .title-page{height:6.9in;display:flex;flex-direction:column;align-items:center;text-align:center;break-after:page;padding-top:.7in}
 .tp-mark{font:400 34pt/1 var(--display);color:var(--accent)}
-.tp-title{font:500 30pt/1.04 var(--display);margin:.55in 0 .2in;text-wrap:balance;max-width:4.2in;overflow-wrap:break-word}
+.tp-title{font:500 30pt/1.04 var(--display);font-variant-numeric:lining-nums;margin:.55in 0 .2in;text-wrap:balance;max-width:4.2in;overflow-wrap:break-word}
 .tp-title.long{font-size:22pt}.tp-title.mid{font-size:26pt}
 .tp-rule,.ornament{display:flex;align-items:center;justify-content:center;gap:.14in;color:var(--accent);font-size:11pt;margin:.06in 0}
 .tp-rule::before,.tp-rule::after{content:"";width:.5in;height:.6pt;background:var(--accent)}
@@ -261,10 +271,10 @@ body{margin:0;color:var(--ink);font-family:var(--serif);line-height:1.5;font-ker
 .imprint{break-after:page;font-size:9.2pt;line-height:1.55;color:#3c352b;padding-top:.1in}
 .imprint h2{font:600 7.4pt/1 "Helvetica Neue",Helvetica,Arial,sans-serif;letter-spacing:.22em;text-transform:uppercase;color:var(--accent);margin:.26in 0 .09in}
 .imprint h2:first-child{margin-top:0}
-.imprint p{margin:0 0 .08in;text-align:left;hyphens:auto}
+.imprint p{margin:0 0 .08in;text-align:left;hyphens:manual}
 .imprint .fine{color:var(--soft);font-size:8.2pt;margin-top:.3in}
 .toc{break-after:page}
-.toc h2.toc-h{font:500 22pt/1 var(--display);text-align:center;margin:.12in 0 .1in}
+.toc h2.toc-h{font:500 22pt/1 var(--display);font-variant-numeric:lining-nums;text-align:center;margin:.12in 0 .1in}
 .toc .ornament{margin-bottom:.3in}
 .toc-rows{list-style:none;margin:0;padding:0}
 .toc-rows.two{columns:2;column-gap:.4in}
@@ -277,7 +287,7 @@ body{margin:0;color:var(--ink);font-family:var(--serif);line-height:1.5;font-ker
 .toc-rows .n{font-variant-numeric:oldstyle-nums;color:var(--soft);min-width:.3in;text-align:right}
 .toc-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:.08in .06in;list-style:none;margin:0;padding:0}
 .toc-grid li{display:block;text-align:center;border-top:.6pt solid var(--rule);padding-top:.06in;break-inside:avoid}
-.toc-grid .g{display:block;font:500 12pt/1.1 var(--display)}
+.toc-grid .g{display:block;font:500 12pt/1.1 var(--display);font-variant-numeric:lining-nums}
 .toc-grid .n{display:block;font-size:8pt;color:var(--soft);font-variant-numeric:oldstyle-nums}
 .toc-grid a,.toc-rows a{color:inherit;text-decoration:none}
 .unit,.flow{page:body}
@@ -290,14 +300,14 @@ body{margin:0;color:var(--ink);font-family:var(--serif);line-height:1.5;font-ker
 .lines.keep{break-inside:avoid}
 .opener{text-align:center;padding:.9in 0 .4in;break-after:avoid}
 .opener .k{font:600 7.6pt/1 "Helvetica Neue",Helvetica,Arial,sans-serif;letter-spacing:.3em;text-transform:uppercase;color:var(--accent)}
-.opener h2{font:500 24pt/1.12 var(--display);margin:.22in auto .1in;max-width:4in;text-wrap:balance;letter-spacing:.005em}
+.opener h2{font:500 24pt/1.12 var(--display);font-variant-numeric:lining-nums;margin:.22in auto .1in;max-width:4in;text-wrap:balance;letter-spacing:.005em}
 .opener .ornament{margin-top:.2in}
 .opener.untitled{padding-top:.4in}
 .opener.untitled h2{font-size:21pt}
 .marker{display:block;height:2px;margin-bottom:-2px;font-size:2px;line-height:2px;color:#fff;overflow:hidden}
 .text{position:relative}
 .text p{margin:0;position:relative}
-.prose{text-align:justify;hyphens:auto;overflow-wrap:break-word}
+.prose{text-align:justify;hyphens:auto;hyphenate-limit-chars:6 3 3;overflow-wrap:break-word}
 .text:not(.has-refs) .prose{text-indent:1.35em}
 .text:not(.has-refs) .prose:first-child,.subhead+.prose,.dek+.prose{text-indent:0}
 .prose.numbered{text-indent:0;margin-top:.1in}
@@ -313,7 +323,7 @@ body{margin:0;color:var(--ink);font-family:var(--serif);line-height:1.5;font-ker
 .rubric{color:#8c3b2c}
 .mk{font:600 6.6pt/1 var(--serif);color:var(--accent);vertical-align:super;margin:0 .15em;font-variant-numeric:oldstyle-nums}
 .fn{font-size:.66em;vertical-align:super;line-height:0;color:var(--accent)}
-.dek{font:italic 400 1.02em/1.4 var(--display);color:var(--soft);text-align:center;margin:-.12in 0 .26in!important;text-indent:0!important}
+.dek{font:italic 400 1.02em/1.4 var(--display);font-variant-numeric:lining-nums;color:var(--soft);text-align:center;margin:-.12in 0 .26in!important;text-indent:0!important}
 .subhead{font:600 7.6pt/1 "Helvetica Neue",Helvetica,Arial,sans-serif;letter-spacing:.24em;text-transform:uppercase;color:var(--accent);margin:.34in 0 .14in !important;text-align:center;break-after:avoid}
 .fig{margin:.2in 0;text-align:center;break-inside:avoid}.fig img{max-width:100%;max-height:4in}
 .fig figcaption{font:italic 8.6pt/1.35 var(--serif);color:var(--soft);margin-top:.06in}
@@ -345,7 +355,7 @@ def _toc_markup(book: Book, opts: Options, titles) -> str:
             k = f'<span class="k">{esc(kicker)}</span>' if kicker and title else ""
             t = esc(re.sub(r"\s(?=\S$)", "\u00a0", title or kicker))
             items.append(f'<li><a class="t" href="#u{i}">{t}</a>{k}<span class="dots"></span><a class="n" href="#u{i}">{esc(num)}</a></li>')
-    cls = "toc-grid" if grid else ("toc-rows two dense" if n > 50 else ("toc-rows two" if n > 28 else "toc-rows"))
+    cls = "toc-grid" if grid else ("toc-rows two dense" if n > 50 else ("toc-rows two" if n > 21 else "toc-rows"))
     return f'<section class="front toc"><h2 class="toc-h">Contents</h2><div class="ornament">❦</div><ol class="{cls}">{"".join(items)}</ol></section>'
 
 
@@ -413,8 +423,6 @@ def print_html(book: Book, opts: Options, base_css: str = "") -> str:
     book = prepare(book)
     ref_mode = getattr(book, "ref_mode", False)
     titles = unit_titles(book, opts)
-    head_left = book.title
-    head_right = book.author or book.edition_label
     has_refs = any(l.lead for u in book.units for b in u.blocks if b.kind == "text" for l in b.lines)
     lang = lang_attr(book.language)
     dir_attr = ""
@@ -447,10 +455,9 @@ def print_html(book: Book, opts: Options, base_css: str = "") -> str:
     if flow:
         body = [f'<div class="flow">{"".join(body)}</div>']
     toc = _toc_markup(book, opts, titles) if book.divided and len(book.units) > 1 and not ref_mode else ""
-    running = (f'--head-left:{css_string(head_left)};--head-right:{css_string(head_right)};')
     head = (f'<meta charset="utf-8"/><title>{esc(book.title)} — {esc(book.edition_label)}</title>'
             f'<meta name="author" content="{esc(book.author)}"/>'
             + (f'<link rel="stylesheet" href="{esc(Path(opts.font_css).as_uri())}"/>' if opts.font_css else "")
-            + f'<style>{COVER_CSS}{PRINT_CSS}{base_css}:root{{{running}}}</style>')
+            + f'<style>{COVER_CSS}{PRINT_CSS}{base_css}</style>')
     return (f'<!doctype html><html lang="{esc(book.language and lang or "en")}"{dir_attr}><head>{head}</head><body>'
             f'{cover}{title_page}<section class="front">{_imprint_markup(book, opts)}</section>{toc}{"".join(body)}</body></html>')

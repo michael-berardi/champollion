@@ -9,7 +9,7 @@ from typing import Dict, List, Optional, Sequence, Tuple
 from ..findings import ChampollionError
 from .epub import build_epub
 from .model import Book, DEFAULT_EDITIONS, available_editions, load_book
-from .pdf import find_chrome, html_to_pdf, html_to_png, locate_markers, pdf_pages
+from .pdf import find_chrome, html_to_pdf, html_to_png, locate_markers, pdf_pages, require_poppler
 from .typeset import prepare, COVER_CSS, Options, cover_markup, esc, print_html
 
 
@@ -44,26 +44,39 @@ def cover_image(book: Book, opts: Options, chrome: str):
         return data, "png"
 
 
+def _timeout(html: str) -> int:
+    """Chrome prints a book in seconds; a stall is cut off and retried, sooner for small books."""
+    return int(min(1500, max(120, 120 + len(html) / 12000)))
+
+
 def export_pdf(book: Book, opts: Options, out_path: str, chrome: str) -> Dict[str, object]:
-    pages_map: Optional[Dict[int, int]] = None
+    """Typeset to PDF. For divided books a probe pass (invisible per-division markers) finds each division's page and
+    the contents is filled in; the clean result is checked to have the probe's page count, and re-measured if not."""
+    require_poppler()
     book = prepare(book)
-    if book.divided and len(book.units) > 1 and not book.ref_mode:
-        opts.markers, opts.toc_pages = True, None
-        probe = out_path + ".probe.pdf"
-        try:
-            html_to_pdf(print_html(book, opts), probe, chrome)
-            found = locate_markers(probe, len(book.units))
-        finally:
-            Path(probe).unlink(missing_ok=True)
-        if len(found) == len(book.units):
-            pages_map = found
-        else:
-            raise ChampollionError(
-                f"{book.slug}: contents page numbers need pdftotext (poppler); found {len(found)} of {len(book.units)} markers",
-                cause="ENGINE-MISSING")
-    opts.markers, opts.toc_pages = False, pages_map
-    html_to_pdf(print_html(book, opts), out_path, chrome)
-    return {"path": out_path, "bytes": Path(out_path).stat().st_size, "pages": pdf_pages(out_path)}
+    numbered = book.divided and len(book.units) > 1 and not book.ref_mode
+    pages_map: Optional[Dict[int, int]] = None
+    probe = out_path + ".probe.pdf"
+    try:
+        for attempt in range(3):
+            probe_pages = 0
+            if numbered:
+                opts.markers, opts.toc_pages = True, pages_map
+                html = print_html(book, opts)
+                html_to_pdf(html, probe, chrome, _timeout(html))
+                found = locate_markers(probe, len(book.units))
+                if len(found) != len(book.units):
+                    raise ChampollionError(f"{book.slug}: found {len(found)} of {len(book.units)} division markers in the probe", cause="ENGINE-FAILED")
+                pages_map, probe_pages = found, pdf_pages(probe)
+            opts.markers, opts.toc_pages = False, pages_map
+            html = print_html(book, opts)
+            html_to_pdf(html, out_path, chrome, _timeout(html))
+            pages = pdf_pages(out_path)
+            if not numbered or pages == probe_pages:
+                return {"path": out_path, "bytes": Path(out_path).stat().st_size, "pages": pages}
+        raise ChampollionError(f"{book.slug}: contents page numbers did not settle after 3 passes", cause="ENGINE-FAILED")
+    finally:
+        Path(probe).unlink(missing_ok=True)
 
 
 def export_book(work: str, edition: str, formats: Sequence[str], out_dir: str, opts: Options,

@@ -26,7 +26,7 @@ h1,h2,h3{font-weight:normal;margin:0;page-break-after:avoid;break-after:avoid;hy
 .text .prose:first-child,.subhead+.prose,.dek+.prose{text-indent:0}
 .prose.numbered{text-indent:0;margin-top:.7em}
 .lines{margin:.9em 0}
-.ln{display:block;margin:0 0 0 1.7em;text-indent:-1.7em}
+.ln{display:block;margin:0;margin-inline-start:1.7em;text-indent:-1.7em}
 .ref{font-size:.74em;color:#8a6a2c;margin-inline-end:.55em;letter-spacing:.03em;font-variant-numeric:oldstyle-nums}
 .rubric{color:#8c3b2c}
 .mk{font-size:.7em;color:#8a6a2c;vertical-align:super;margin:0 .15em}
@@ -41,9 +41,9 @@ h1,h2,h3{font-weight:normal;margin:0;page-break-after:avoid;break-after:avoid;hy
 .tp .ed{font-style:italic;color:#8a6a2c;font-size:1.2em;margin-top:1em}.tp .pub{margin-top:3em;font-size:.7em;letter-spacing:.3em;text-transform:uppercase;color:#777}
 .about h2{font-size:.72em;letter-spacing:.2em;text-transform:uppercase;color:#8a6a2c;margin:1.6em 0 .4em}
 .about h2:first-child{margin-top:0}.about p{margin:0 0 .5em;font-size:.95em}.about .fine{color:#777;font-size:.8em;margin-top:2em}
-[lang^="lzh"] .text,[lang^="zh"] .text{line-height:1.8}
-[lang^="ar"] .text{line-height:1.95}
-[lang^="egy"] .text{line-height:1.7}
+.text[lang^="lzh"],.text[lang^="zh"]{line-height:1.8}
+.text[lang^="ar"]{line-height:1.95}
+.text[lang^="egy"]{line-height:1.7}
 nav ol{list-style:none;padding:0;margin:0}nav li{margin:.35em 0}nav a{color:inherit;text-decoration:none}
 '''
 
@@ -92,7 +92,7 @@ def build_epub(book: Book, opts: Options, out_path: str, cover: Optional[Tuple[b
         css = f'@font-face{{font-family:"{family}";src:url("fonts/{filename}")}}\n' + css
     if fonts:
         fams = ",".join(f'"{f}"' for f, _, _ in fonts)
-        css += f'[lang^="egy"] .text{{font-family:{fams},serif}}\n'
+        css += f'.text[lang^="egy"]{{font-family:{fams},serif}}\n'
 
     def add(path: str, ident_: str, text: str, media: str = "application/xhtml+xml", props: str = "", in_spine: bool = True):
         files.append((path, ident_, text.encode("utf-8"), media + (("|" + props) if props else "")))
@@ -140,7 +140,7 @@ def build_epub(book: Book, opts: Options, out_path: str, cover: Optional[Tuple[b
             parts.append(body + "</section>")
             if not ref_mode or i == group[0]:
                 toc.append((f"c{gi + 1:03d}.xhtml#u{i}", display_title(kicker, title) or book.title))
-        add(f"c{gi + 1:03d}.xhtml", f"c{gi + 1:03d}", _xhtml(book.title, "".join(parts), "en"))
+        add(f"c{gi + 1:03d}.xhtml", f"c{gi + 1:03d}", _xhtml(book.title, "".join(parts), lang, dir_attr=' dir="rtl"' if book.direction == "rtl" else ""))
     # figures
     for xhtml in [f for f in files if f[0].startswith("c")]:
         pass
@@ -188,7 +188,6 @@ def build_epub(book: Book, opts: Options, out_path: str, cover: Optional[Tuple[b
         f'<dc:creator id="creator">{esc(creator)}</dc:creator>',
         f'<dc:language>{esc(lang)}</dc:language>',
         f'<dc:publisher>{esc(opts.publisher)}</dc:publisher>',
-        f'<dc:date>{date}</dc:date>',
         f'<dc:description>{esc(description[:600])}</dc:description>',
     ]
     if book.edition != "original" and book.translator:
@@ -196,13 +195,15 @@ def build_epub(book: Book, opts: Options, out_path: str, cover: Optional[Tuple[b
     if book.genre:
         meta.append(f'<dc:subject>{esc(book.genre)}</dc:subject>')
     if opts.site_url:
-        meta.append(f'<dc:source>https://{esc(opts.site_url)}/texts/{esc(book.slug)}</dc:source>')
+        meta.append(f'<dc:source>https://{esc(re.sub(r"^https?://", "", opts.site_url).strip("/"))}/texts/{esc(book.slug)}</dc:source>')
     if cover_png:
         meta.append('<meta name="cover" content="cover-img"/>')
+    if book.as_of:
+        meta.append(f'<dc:date>{date}</dc:date>')
     meta.append(f'<meta property="dcterms:modified">{modified}</meta>')
     opf = ('<?xml version="1.0" encoding="utf-8"?>\n<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="uid" xml:lang="' + esc(lang) + '">'
            '<metadata xmlns:dc="http://purl.org/dc/elements/1.1/">' + "".join(meta) + "</metadata>"
-           f'<manifest>{"".join(manifest)}</manifest><spine toc="ncx">{spine_xml}</spine>'
+           f'<manifest>{"".join(manifest)}</manifest><spine toc="ncx"{' page-progression-direction="rtl"' if book.direction == "rtl" else ""}>{spine_xml}</spine>'
            '<guide>' + ('<reference type="cover" title="Cover" href="cover.xhtml"/>' if cover_png else "") + f'<reference type="text" title="Start" href="{first_href.split("#")[0]}"/></guide></package>')
     container = ('<?xml version="1.0" encoding="utf-8"?>\n<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">'
                  '<rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>')
@@ -240,7 +241,7 @@ def _collect_figures(files) -> List[Tuple[str, str, bytes, str]]:
             if uri not in seen:
                 name = f"images/fig-{len(seen) + 1}{local.suffix.lower()}"
                 seen[uri] = name
-                found.append((name, f"fig{len(seen)}", local.read_bytes(), "image/png" if local.suffix.lower() == ".png" else "image/jpeg"))
+                found.append((name, f"fig{len(seen)}", local.read_bytes(), {".png": "image/png", ".gif": "image/gif", ".webp": "image/webp"}.get(local.suffix.lower(), "image/jpeg")))
             return f'src="{seen[uri]}"'
         text = re.sub(r'src="(file://[^"]+)"', swap, text)
         files[idx] = (path, fid, text.encode("utf-8"), media)

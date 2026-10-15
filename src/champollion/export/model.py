@@ -128,8 +128,11 @@ def load_book(path: str, edition: str, editions: Optional[Dict[str, Dict[str, ob
                 note = front[str(key)]
                 break
         translator = translator or front.get("translator", "")
+    slug = front.get("slug", Path(path).stem)
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", slug) or ".." in slug:
+        raise ChampollionError(f"{path}: slug {slug!r} is not a safe file name", cause="SEG-FRONT-MATTER")
     return Book(
-        slug=front.get("slug", Path(path).stem), edition=edition, edition_label=str(spec["label"]),
+        slug=slug, edition=edition, edition_label=str(spec["label"]),
         title=front.get("title", Path(path).stem), author=front.get("author", ""), language=language,
         source_language=source_language, tradition=front.get("tradition", ""), genre=front.get("genre", ""),
         period=front.get("period", ""), translator=translator, note=note,

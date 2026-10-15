@@ -200,6 +200,44 @@ class ModelCase(unittest.TestCase):
             self.assertEqual(load_book(write(tmp, "demo-work.md", WORK), "original").language, "grc")
 
 
+class SafetyCase(unittest.TestCase):
+    def test_unsafe_slug_is_refused(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            work = write(tmp, "x.md", CHAPTERS.replace("slug: chaptered", "slug: ../../etc/x"))
+            with self.assertRaises(ChampollionError) as ctx:
+                load_book(work, "musean")
+            self.assertIn("safe file name", str(ctx.exception))
+
+    def test_figures_must_stay_inside_the_assets_directory(self):
+        from champollion.export.typeset import _asset
+        with tempfile.TemporaryDirectory() as tmp:
+            assets = Path(tmp) / "assets"
+            (assets / "figures").mkdir(parents=True)
+            (assets / "figures" / "a.png").write_bytes(b"png")
+            (Path(tmp) / "secret.txt").write_text("x")
+            opts = Options(assets_dir=str(assets))
+            self.assertTrue(_asset("/figures/a.png", opts).endswith("a.png"))
+            for bad in ("/../secret.txt", "/figures/../../secret.txt", "/figures/missing.png"):
+                with self.assertRaises(ChampollionError):
+                    _asset(bad, opts)
+
+    def test_markup_in_titles_is_escaped(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            work = write(tmp, "chaptered.md", CHAPTERS.replace('title: "A Chaptered Work"', 'title: "A <script>x</script> & Work"'))
+            html = print_html(load_book(work, "musean"), Options())
+            self.assertNotIn("<script>x", html)
+            self.assertIn("&lt;script&gt;", html)
+
+    def test_rtl_epub_declares_direction(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            work = write(tmp, "ar.md", CHAPTERS.replace("language: fr", "language: ar").replace("slug: chaptered", "slug: arabic"))
+            out = Path(tmp) / "ar.epub"
+            build_epub(load_book(work, "original"), Options(), str(out))
+            with zipfile.ZipFile(out) as z:
+                self.assertIn('page-progression-direction="rtl"', z.read("OEBPS/content.opf").decode())
+                self.assertIn('dir="rtl"', z.read("OEBPS/c001.xhtml").decode())
+
+
 def _chrome():
     try:
         return find_chrome()
