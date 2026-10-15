@@ -9,8 +9,9 @@ from typing import Dict, List, Optional, Sequence, Tuple
 from ..findings import ChampollionError
 from .epub import build_epub
 from .model import Book, DEFAULT_EDITIONS, available_editions, load_book
-from .pdf import find_chrome, html_to_pdf, html_to_png, locate_markers, pdf_pages, require_poppler
-from .typeset import prepare, COVER_CSS, Options, cover_markup, esc, print_html
+from .pdf import find_chrome, html_to_pdf, html_to_png, locate_markers, page_texts, pdf_pages, require_poppler
+import re
+from .typeset import prepare, unit_titles, COVER_CSS, Options, cover_markup, esc, print_html
 
 
 def convert_font(path: str) -> Tuple[str, bytes]:
@@ -49,6 +50,20 @@ def _timeout(html: str) -> int:
     return int(min(1500, max(120, 120 + len(html) / 12000)))
 
 
+def _verify_contents(book: Book, opts: Options, pdf: str, pages_map: Dict[int, int]) -> None:
+    """Every contents entry must name the page where that division's heading really is."""
+    texts = page_texts(pdf)
+    norm = lambda s: re.sub(r"\s+", "", s).casefold()
+    wrong = []
+    for i, (kicker, title) in enumerate(unit_titles(book, opts)):
+        heading = norm(title or kicker)[:24]
+        page = pages_map[i]
+        if not heading or page > len(texts) or heading not in norm(texts[page - 1]):
+            wrong.append(f"{i + 1}:{title or kicker!r}->p{page}")
+    if wrong:
+        raise ChampollionError(f"{book.slug}: contents numbers do not match headings: {', '.join(wrong[:6])}", cause="ENGINE-FAILED")
+
+
 def export_pdf(book: Book, opts: Options, out_path: str, chrome: str) -> Dict[str, object]:
     """Typeset to PDF. For divided books a probe pass (invisible per-division markers) finds each division's page and
     the contents is filled in; the clean result is checked to have the probe's page count, and re-measured if not."""
@@ -73,6 +88,8 @@ def export_pdf(book: Book, opts: Options, out_path: str, chrome: str) -> Dict[st
             html_to_pdf(html, out_path, chrome, _timeout(html))
             pages = pdf_pages(out_path)
             if not numbered or pages == probe_pages:
+                if numbered:
+                    _verify_contents(book, opts, out_path, pages_map or {})
                 return {"path": out_path, "bytes": Path(out_path).stat().st_size, "pages": pages}
         raise ChampollionError(f"{book.slug}: contents page numbers did not settle after 3 passes", cause="ENGINE-FAILED")
     finally:

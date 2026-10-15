@@ -298,13 +298,13 @@ body{margin:0;color:var(--ink);font-family:var(--serif);line-height:1.5;font-ker
 .opener.compact .k{font-size:6.8pt}
 .flow .unit{break-before:auto;margin-top:.06in}
 .lines.keep{break-inside:avoid}
-.opener{text-align:center;padding:.9in 0 .4in;break-after:avoid}
+.opener{position:relative;text-align:center;padding:.9in 0 .4in;break-after:avoid}
 .opener .k{font:600 7.6pt/1 "Helvetica Neue",Helvetica,Arial,sans-serif;letter-spacing:.3em;text-transform:uppercase;color:var(--accent)}
 .opener h2{font:500 24pt/1.12 var(--display);font-variant-numeric:lining-nums;margin:.22in auto .1in;max-width:4in;text-wrap:balance;letter-spacing:.005em}
 .opener .ornament{margin-top:.2in}
 .opener.untitled{padding-top:.4in}
 .opener.untitled h2{font-size:21pt}
-.marker{display:block;height:2px;margin-bottom:-2px;font-size:2px;line-height:2px;color:#fff;overflow:hidden}
+.marker{position:absolute;left:0;top:0;font-size:2px;line-height:2px;color:#fff;white-space:nowrap}
 .text{position:relative}
 .text p{margin:0;position:relative}
 .prose{text-align:justify;hyphens:auto;hyphenate-limit-chars:6 3 3;overflow-wrap:break-word}

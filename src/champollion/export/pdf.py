@@ -118,5 +118,11 @@ def locate_markers(pdf: str, count: int) -> Dict[int, int]:
     found: Dict[int, int] = {}
     for page, chunk in enumerate(text.split("\f"), 1):
         for m in re.finditer(r"§§U(\d+)§§", chunk):
-            found.setdefault(int(m.group(1)), page)
+            # Chrome can also paint a positioned marker at the foot of the page before a forced break; the last sighting is the real one.
+            found[int(m.group(1))] = page
     return found
+
+
+def page_texts(pdf: str) -> List[str]:
+    """Plain text of every page (index 0 = page 1)."""
+    return _poppler("pdftotext", "-layout", pdf, "-").split("\f")
