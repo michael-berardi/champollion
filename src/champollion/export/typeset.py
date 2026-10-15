@@ -304,7 +304,7 @@ body{margin:0;color:var(--ink);font-family:var(--serif);line-height:1.5;font-ker
 .opener .ornament{margin-top:.2in}
 .opener.untitled{padding-top:.4in}
 .opener.untitled h2{font-size:21pt}
-.marker{position:absolute;left:0;top:0;font-size:2px;line-height:2px;color:#fff;white-space:nowrap}
+.marker{font-size:1px;line-height:0;color:#fff;letter-spacing:0;white-space:nowrap}
 .text{position:relative}
 .text p{margin:0;position:relative}
 .prose{text-align:justify;hyphens:auto;hyphenate-limit-chars:6 3 3;overflow-wrap:break-word}
@@ -447,7 +447,7 @@ def print_html(book: Book, opts: Options, base_css: str = "") -> str:
             k = f'<div class="k">{esc(kicker)}</div>' if (kicker and title) else ""
             ornament = "" if flow else '<div class="ornament">❦</div>'
             cls = "opener compact" if flow else "opener"
-            opener = f'<header class="{cls}">{marker}{k}<h2>{h}</h2>{ornament}</header>'
+            opener = f'<header class="{cls}">{k}<h2>{h}{marker}</h2>{ornament}</header>'
         text = render_blocks(unit.blocks, book.language, opts)
         if has_refs:
             text = text.replace('<div class="text"', '<div class="text has-refs"', 1)
