@@ -6,6 +6,10 @@ Champollion enforces mechanical requirements and records judgement (VER-1). It d
 
 ## [Unreleased]
 
+### Added
+
+- `champollion export`: typeset each edition of a work as a PDF (headless Chrome, 6 × 9 in, contents with page numbers) and as an EPUB 3 for Kindle and other readers. Standard library only apart from the PDF engine. See docs/export.md.
+
 ## [1.0.1] - 2026-10-13
 
 ### Fixed

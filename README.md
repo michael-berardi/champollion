@@ -92,6 +92,14 @@ A reviewer still needs to assess meaning, completeness, and fidelity to the sour
 
 Use `report --json` to get a structured report for scripts. Exit codes are `0` for no errors, `1` for reported errors, and `2` when the command cannot run because of a usage, configuration, or file problem. Warnings remain visible; `--strict` makes them fail the check too.
 
+## Publish the editions as books
+
+`champollion export` typesets every edition of a work as a PDF and a Kindle-ready EPUB, from the same files the checks read. See [docs/export.md](docs/export.md).
+
+```sh
+champollion export works/analects.md --out books/ --publisher "My Press"
+```
+
 ## Contribute
 
 Use the [issue tracker](https://github.com/michael-berardi/champollion/issues) to report a bug, a false positive, or a proposed improvement to the method. Include the command, profile, and a small example you have permission to share.

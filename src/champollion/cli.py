@@ -69,6 +69,23 @@ def _parser() -> argparse.ArgumentParser:
     validate = commands.add_parser("profile").add_subparsers(dest="profile_command", required=True).add_parser("validate")
     validate.add_argument("file")
     _json_flag(validate)
+    export = commands.add_parser("export", help="typeset a work as PDF and EPUB (Kindle) books")
+    export.add_argument("work", help="path of a work .md file")
+    export.add_argument("--edition", action="append", help="original, musean, plain, historical (repeatable; default: every edition present)")
+    export.add_argument("--format", action="append", choices=("pdf", "epub"), help="repeatable; default: both")
+    export.add_argument("--out", required=True, help="output directory")
+    export.add_argument("--publisher", default="Champollion")
+    export.add_argument("--site-url", default="")
+    export.add_argument("--motif", default="§", help="cover emblem")
+    export.add_argument("--deep", default="#2b2118", help="cover colour")
+    export.add_argument("--accent", default="#b8924a", help="accent colour")
+    export.add_argument("--unit-noun", default="Part", help="what the work calls its divisions (Book, Chapter, ...)")
+    export.add_argument("--font-css", help="@font-face stylesheet (absolute file: URLs) for PDF and cover rendering")
+    export.add_argument("--epub-font", action="append", default=[], metavar="FAMILY=FILE", help="embed a font in Egyptian originals (repeatable)")
+    export.add_argument("--assets-dir", default="", help="directory that resolves /figures/... image paths")
+    export.add_argument("--colophon", default="")
+    export.add_argument("--chrome", help="Chrome/Chromium binary (or $CHAMPOLLION_CHROME)")
+    _json_flag(export)
     vendor = commands.add_parser("vendor")
     vendor.add_argument("--into", required=True)
     vendor.add_argument("--tag")
@@ -231,6 +248,19 @@ def _dispatch(args: argparse.Namespace) -> int:
         root = Path.cwd()
         result = assemble_work(_one_work(root, args.work), _profile(root), args.register, args.directory, str(root))
         _emit(result, args.json, f"assembled {result['output']}")
+    elif command == "export":
+        from .export.build import export_book
+        from .export.model import available_editions
+        from .export.typeset import Options, Theme
+        opts = Options(publisher=args.publisher, site_url=args.site_url, unit_noun=args.unit_noun, font_css=args.font_css or "",
+                       assets_dir=args.assets_dir, colophon=args.colophon, theme=Theme(deep=args.deep, accent=args.accent, motif=args.motif))
+        editions = args.edition or available_editions(args.work)
+        formats = args.format or ["epub", "pdf"]
+        files = []
+        for edition in editions:
+            files.extend(export_book(args.work, edition, formats, args.out, opts, args.chrome, args.epub_font))
+        _emit({"work": args.work, "files": files}, args.json,
+              "\n".join(f"{f['path']} ({f['bytes']} bytes)" for f in files))
     elif command == "vendor":
         from .vendor import vendor
         result = vendor(args.into, args.tag)
