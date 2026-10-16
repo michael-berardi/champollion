@@ -380,6 +380,16 @@ def _chrome():
 
 
 class EngineRetryCase(unittest.TestCase):
+    def test_complete_output_survives_a_teardown_exit_code(self):
+        from champollion.export import pdf as pdfmod
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "book.pdf"
+            out.write_bytes(b"%PDF" + b"x" * 2000)
+            script = f"import sys; sys.stderr.write('ERROR CVDisplayLink\\n2004 bytes written to file {out}\\n'); sys.exit(2)"
+            pdfmod._run([sys.executable, "-c", script], 30, out)          # complete output: accepted
+            with self.assertRaises(ChampollionError):
+                pdfmod._run([sys.executable, "-c", "import sys; sys.exit(2)"], 30, out)   # no confirmation: refused
+
     def test_an_abnormal_chrome_exit_is_retried_once(self):
         from champollion.export import pdf as pdfmod
         calls = []

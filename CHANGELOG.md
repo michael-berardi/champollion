@@ -6,6 +6,12 @@ Champollion enforces mechanical requirements and records judgement (VER-1). It d
 
 ## [Unreleased]
 
+## [1.1.2] - 2026-10-16
+
+### Fixed
+
+- A Chrome exit code during teardown (macOS CVDisplayLink, exit 2 under heavy load) no longer fails an export when Chrome has written its complete output and reported it; any other abnormal exit is still a named failure.
+
 ## [1.1.1] - 2026-10-16
 
 ### Fixed

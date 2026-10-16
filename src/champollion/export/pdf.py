@@ -30,7 +30,7 @@ def find_chrome(explicit: Optional[str] = None) -> str:
     raise ChampollionError("no Chrome/Chromium found; pass --chrome or set CHAMPOLLION_CHROME", cause="ENGINE-MISSING")
 
 
-def _run(args: List[str], timeout: int) -> None:
+def _run(args: List[str], timeout: int, output: Optional[Path] = None) -> None:
     """Run Chrome in its own process group so a hang takes its helper processes down with it."""
     proc = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, start_new_session=True)
     try:
@@ -46,6 +46,12 @@ def _run(args: List[str], timeout: int) -> None:
             pass
         raise ChampollionError(f"chrome did not finish within {timeout}s", cause="ENGINE-TIMEOUT")
     if proc.returncode != 0:
+        # Under heavy load macOS Chrome can exit 2 while tearing down (a CVDisplayLink error) after it has written its
+        # output and said so. That output is complete; anything else is a real failure.
+        text = stderr.decode("utf-8", "replace")
+        if output is not None and output.is_file() and output.stat().st_size > 1000 \
+                and re.search(r"bytes written to file \S*" + re.escape(output.name), text):
+            return
         raise ChampollionError(f"chrome exited {proc.returncode}: {stderr.decode('utf-8', 'replace')[-400:]}", cause="ENGINE-FAILED")
 
 
@@ -72,7 +78,7 @@ def _print(html_text: str, out_pdf: str, chrome: str, timeout: int) -> None:
         _run([chrome, "--headless=new", "--disable-gpu", "--no-sandbox", "--no-first-run", "--hide-scrollbars",
               f"--user-data-dir={profile}", "--no-pdf-header-footer", "--allow-file-access-from-files",
               "--virtual-time-budget=120000", "--run-all-compositor-stages-before-draw",
-              f"--print-to-pdf={tmp_pdf}", page.as_uri()], timeout)
+              f"--print-to-pdf={tmp_pdf}", page.as_uri()], timeout, tmp_pdf)
         if not tmp_pdf.is_file() or tmp_pdf.stat().st_size < 1000:
             raise ChampollionError("chrome produced no PDF", cause="ENGINE-FAILED")
         Path(out_pdf).parent.mkdir(parents=True, exist_ok=True)
@@ -97,7 +103,7 @@ def _screenshot(html_text: str, chrome: str, width: int, height: int, scale: flo
         tmp_png = Path(tmp) / "cover.png"
         _run([chrome, "--headless=new", "--disable-gpu", "--no-sandbox", "--no-first-run", "--hide-scrollbars",
               f"--user-data-dir={Path(tmp) / 'profile'}", "--allow-file-access-from-files", f"--window-size={width},{height}",
-              f"--force-device-scale-factor={scale}", "--virtual-time-budget=20000", f"--screenshot={tmp_png}", page.as_uri()], timeout)
+              f"--force-device-scale-factor={scale}", "--virtual-time-budget=20000", f"--screenshot={tmp_png}", page.as_uri()], timeout, tmp_png)
         if not tmp_png.is_file():
             raise ChampollionError("chrome produced no screenshot", cause="ENGINE-FAILED")
         return tmp_png.read_bytes()
