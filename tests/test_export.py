@@ -143,6 +143,9 @@ class TypesetCase(unittest.TestCase):
             self.assertNotIn('class="opener', html)      # no heading per Stephanus page
             self.assertNotIn('class="front toc"', html)  # and no contents of 125 page numbers
             self.assertIn("“Men of Athens,”", html)
+            # numbered text keeps the same visual centring as unnumbered text: the number gutter comes out of the page margins
+            self.assertIn("@page body{margin:.95in .72in .98in .40in}", html)
+            self.assertNotIn("half-title", html)
 
     def test_subtitle_lines_and_contents(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -258,7 +261,7 @@ class PdfCase(unittest.TestCase):
             self.assertEqual(sorted(f["format"] for f in files), ["epub", "pdf"])
             pdf = next(f for f in files if f["format"] == "pdf")
             self.assertTrue(Path(pdf["path"]).read_bytes().startswith(b"%PDF"))
-            self.assertGreaterEqual(pdf["pages"], 5)  # cover, half title, title, imprint, text
+            self.assertGreaterEqual(pdf["pages"], 4)  # cover, title, imprint, text
 
 
 if __name__ == "__main__":

@@ -256,8 +256,6 @@ body{margin:0;color:var(--ink);font-family:var(--serif);line-height:1.5;font-ker
  -webkit-font-smoothing:antialiased;orphans:3;widows:3}
 .cover-page{page:cover;break-after:page}
 .front{page:front}
-.half-title{height:6.9in;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;break-after:page}
-.half-title .ht{font:500 18pt/1.15 var(--display);letter-spacing:.03em}
 .title-page{height:6.9in;display:flex;flex-direction:column;align-items:center;text-align:center;break-after:page;padding-top:.7in}
 .tp-mark{font:400 34pt/1 var(--display);color:var(--accent)}
 .tp-title{font:500 30pt/1.04 var(--display);font-variant-numeric:lining-nums;margin:.55in 0 .2in;text-wrap:balance;max-width:4.2in;overflow-wrap:break-word}
@@ -420,6 +418,12 @@ def is_flow(book: Book) -> bool:
     return chars / len(book.units) < 2600
 
 
+# Chrome clips print content to the page box, so reference numbers cannot hang into the margin. They sit in a
+# .46in gutter inside the text column instead; the page margins give up that width so the text itself stays
+# centred exactly as in an unnumbered book (inner .86in / outer .72in).
+REFS_PAGE_CSS = "@page body{margin:.95in .72in .98in .40in}@page body:left{margin:.95in .86in .98in .26in}"
+
+
 def print_html(book: Book, opts: Options, base_css: str = "") -> str:
     book = prepare(book)
     ref_mode = getattr(book, "ref_mode", False)
@@ -431,7 +435,6 @@ def print_html(book: Book, opts: Options, base_css: str = "") -> str:
     tp_cls = " long" if len(book.title) > 34 else (" mid" if len(book.title) > 20 else "")
     by = f"Translated by {esc(book.translator)}" if (book.edition != "original" and book.translator) else ""
     title_page = (
-        f'<section class="front half-title"><div class="ht">{esc(book.title)}</div></section>'
         f'<section class="front title-page"><div class="tp-mark">{esc(opts.theme.motif)}</div>'
         f'<h1 class="tp-title{tp_cls}">{esc(book.title)}</h1><div class="tp-rule">❦</div>'
         f'<p class="tp-author">{esc(book.author)}</p><p class="tp-edition">{esc(book.edition_label)}</p>'
@@ -459,6 +462,6 @@ def print_html(book: Book, opts: Options, base_css: str = "") -> str:
     head = (f'<meta charset="utf-8"/><title>{esc(book.title)} — {esc(book.edition_label)}</title>'
             f'<meta name="author" content="{esc(book.author)}"/>'
             + (f'<link rel="stylesheet" href="{esc(Path(opts.font_css).as_uri())}"/>' if opts.font_css else "")
-            + f'<style>{COVER_CSS}{PRINT_CSS}{base_css}</style>')
+            + f'<style>{COVER_CSS}{PRINT_CSS}{REFS_PAGE_CSS if has_refs else ""}{base_css}</style>')
     return (f'<!doctype html><html lang="{esc(book.language and lang or "en")}"{dir_attr}><head>{head}</head><body>'
             f'{cover}{title_page}<section class="front">{_imprint_markup(book, opts)}</section>{toc}{"".join(body)}</body></html>')
