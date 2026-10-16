@@ -6,6 +6,12 @@ Champollion enforces mechanical requirements and records judgement (VER-1). It d
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-10-16
+
+### Fixed
+
+- Export retries once when Chrome exits abnormally (macOS CVDisplayLink exit 2 under load), not only on a timeout, before raising the named engine error.
+
 ## [1.1.0] - 2026-10-16
 
 ### Added

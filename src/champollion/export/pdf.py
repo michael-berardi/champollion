@@ -49,13 +49,17 @@ def _run(args: List[str], timeout: int) -> None:
         raise ChampollionError(f"chrome exited {proc.returncode}: {stderr.decode('utf-8', 'replace')[-400:]}", cause="ENGINE-FAILED")
 
 
+RETRIED = ("ENGINE-TIMEOUT", "ENGINE-FAILED")
+
+
 def html_to_pdf(html_text: str, out_pdf: str, chrome: str, timeout: int = 600, attempts: int = 2) -> None:
-    """Print to PDF; Chrome occasionally stalls on a layout pass, so a timeout is retried."""
+    """Print to PDF. Chrome occasionally stalls on a layout pass or exits abnormally under load (exit 2 with a
+    CVDisplayLink error on macOS), so one more attempt is made before the named error is raised."""
     for attempt in range(1, attempts + 1):
         try:
             return _print(html_text, out_pdf, chrome, timeout)
         except ChampollionError as exc:
-            if exc.cause != "ENGINE-TIMEOUT" or attempt == attempts:
+            if exc.cause not in RETRIED or attempt == attempts:
                 raise
 
 
@@ -75,7 +79,18 @@ def _print(html_text: str, out_pdf: str, chrome: str, timeout: int) -> None:
         shutil.move(str(tmp_pdf), out_pdf)
 
 
-def html_to_png(html_text: str, chrome: str, width: int, height: int, scale: float = 2.5, timeout: int = 120) -> bytes:
+def html_to_png(html_text: str, chrome: str, width: int, height: int, scale: float = 2.5, timeout: int = 120,
+                attempts: int = 2) -> bytes:
+    for attempt in range(1, attempts + 1):
+        try:
+            return _screenshot(html_text, chrome, width, height, scale, timeout)
+        except ChampollionError as exc:
+            if exc.cause not in RETRIED or attempt == attempts:
+                raise
+    raise AssertionError("unreachable")
+
+
+def _screenshot(html_text: str, chrome: str, width: int, height: int, scale: float, timeout: int) -> bytes:
     with tempfile.TemporaryDirectory(prefix="champollion-") as tmp:
         page = Path(tmp) / "cover.html"
         page.write_text(html_text, "utf-8")

@@ -379,6 +379,28 @@ def _chrome():
         return None
 
 
+class EngineRetryCase(unittest.TestCase):
+    def test_an_abnormal_chrome_exit_is_retried_once(self):
+        from champollion.export import pdf as pdfmod
+        calls = []
+        def flaky(*args):
+            calls.append(1)
+            if len(calls) == 1:
+                raise ChampollionError("chrome exited 2", cause="ENGINE-FAILED")
+            return b"png"
+        original = pdfmod._screenshot
+        pdfmod._screenshot = flaky
+        try:
+            self.assertEqual(pdfmod.html_to_png("<p/>", "chrome", 10, 10), b"png")
+            self.assertEqual(len(calls), 2)
+            calls.clear()
+            pdfmod._screenshot = lambda *a: (_ for _ in ()).throw(ChampollionError("chrome exited 2", cause="ENGINE-FAILED"))
+            with self.assertRaises(ChampollionError):
+                pdfmod.html_to_png("<p/>", "chrome", 10, 10)
+        finally:
+            pdfmod._screenshot = original
+
+
 @unittest.skipUnless(_chrome(), "Chrome/Chromium not installed")
 class PdfCase(unittest.TestCase):
     def test_cli_exports_a_pdf_and_epub(self):
