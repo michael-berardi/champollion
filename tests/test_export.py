@@ -395,7 +395,7 @@ class PdfCase(unittest.TestCase):
             self.assertGreaterEqual(pdf["pages"], 4)  # cover, title, imprint, text
             info = __import__("subprocess").run(["pdfinfo", pdf["path"]], capture_output=True, text=True).stdout
             self.assertRegex(info, r"Author:\s+Someone")
-            self.assertRegex(info, r"Producer:\s+Champollion")
+            self.assertRegex(info, r"Producer:\s+Champollion \d+\.\d+\.\d+")
 
     def test_translator_credit_and_scale_guard(self):
         with tempfile.TemporaryDirectory() as tmp:

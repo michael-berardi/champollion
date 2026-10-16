@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
+from .. import __version__
 from ..findings import ChampollionError
 from .epub import build_epub
 from .model import Book, DEFAULT_EDITIONS, available_editions, load_book
@@ -75,7 +76,7 @@ def _finish_pdf(book: Book, opts: Options, out_path: str) -> Dict[str, object]:
         "Subject": f"{book.edition_label}{by}",
         "Keywords": ", ".join(x for x in [book.genre, book.period, book.tradition] if x),
         "Creator": opts.publisher,
-        "Producer": "Champollion",
+        "Producer": f"Champollion {__version__}",
     })
     return {"path": out_path, "bytes": Path(out_path).stat().st_size, "pages": pdf_pages(out_path)}
 
