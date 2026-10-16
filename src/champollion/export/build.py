@@ -91,6 +91,24 @@ def export_pdf(book: Book, opts: Options, out_path: str, chrome: str) -> Dict[st
                 if numbered:
                     _verify_contents(book, opts, out_path, pages_map or {})
                 return {"path": out_path, "bytes": Path(out_path).stat().st_size, "pages": pages}
+        if numbered and pages_map:
+            # The probe's markers shifted a break by a page, so probe and clean page counts never agree. Read each
+            # heading's page from the clean PDF itself (within a page of the probe's guess), then confirm it still holds.
+            norm = lambda t: re.sub(r"\s+", "", t).casefold()
+            texts = page_texts(out_path)
+            fixed: Dict[int, int] = {}
+            for i, (kicker, title) in enumerate(unit_titles(book, opts)):
+                heading = norm(title or kicker)[:24]
+                guess = pages_map[i]
+                hits = [q for q in (guess, guess - 1, guess + 1) if 0 < q <= len(texts) and heading and heading in norm(texts[q - 1])]
+                if not hits:
+                    break
+                fixed[i] = hits[0]
+            if len(fixed) == len(book.units):
+                opts.markers, opts.toc_pages = False, fixed
+                html_to_pdf(print_html(book, opts), out_path, chrome, _timeout(html))
+                _verify_contents(book, opts, out_path, fixed)
+                return {"path": out_path, "bytes": Path(out_path).stat().st_size, "pages": pdf_pages(out_path)}
         raise ChampollionError(f"{book.slug}: contents page numbers did not settle after 3 passes", cause="ENGINE-FAILED")
     finally:
         Path(probe).unlink(missing_ok=True)
