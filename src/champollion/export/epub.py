@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from .model import Book
-from .typeset import _sentence, prepare, COVER_CSS, Options, display_title, esc, is_flow, lang_attr, render_blocks, source_host, unit_titles
+from .typeset import _sentence, prepare, COVER_CSS, Options, display_title, esc, human_date, is_flow, lang_attr, render_blocks, source_host, source_titles, unit_titles
 
 EPUB_CSS = '''
 html{-epub-hyphens:auto;hyphens:auto}
@@ -44,6 +44,12 @@ h1,h2,h3{font-weight:normal;margin:0;page-break-after:avoid;break-after:avoid;hy
 .text[lang^="lzh"],.text[lang^="zh"]{line-height:1.8}
 .text[lang^="ar"]{line-height:1.95}
 .text[lang^="egy"]{line-height:1.7}
+.prose.para{text-indent:0}.prose.para.cont{text-indent:1.3em}
+.ref.run{margin-inline-start:.25em}
+.ln.poem-title{font-style:italic;color:#8a6a2c;margin:1.6em 0 .3em;text-indent:0;margin-inline-start:0}
+.src-title{margin:.3em 0 0;color:#6f6659;letter-spacing:.06em}
+.tp .pub-by{margin-top:.6em;color:#555}
+.text[lang^="egy"] .ln{overflow-wrap:anywhere}
 nav ol{list-style:none;padding:0;margin:0}nav li{margin:.35em 0}nav a{color:inherit;text-decoration:none}
 '''
 
@@ -79,6 +85,7 @@ def build_epub(book: Book, opts: Options, out_path: str, cover: Optional[Tuple[b
     book = prepare(book)
     ref_mode = book.ref_mode
     titles = unit_titles(book, opts)
+    sources = source_titles(book, opts)
     flow = is_flow(book)
     ident = uuid.uuid5(uuid.NAMESPACE_URL, f"{opts.site_url or 'urn:champollion'}/{book.slug}/{book.edition}")
     date = book.as_of if re.match(r"^\d{4}-\d{2}-\d{2}$", book.as_of or "") else "2026-01-01"
@@ -111,7 +118,7 @@ def build_epub(book: Book, opts: Options, out_path: str, cover: Optional[Tuple[b
           + f'<p class="pub">{esc(opts.publisher)}</p></div>')
     add("title.xhtml", "title", _xhtml(book.title, tp, "en"))
     about = ['<div class="about">']
-    about.append("<h2>This edition</h2><p>" + (esc(book.note) if (book.edition != "original" and book.note) else (esc(book.edition_label) if book.edition != "original" else "The complete source text in the original language, without translation.")) + "</p>")
+    about.append("<h2>This edition</h2><p>" + (esc(book.note) if (book.edition != "original" and book.note) else (esc(book.edition_label) if book.edition != "original" else "The complete source text in the original language, without translation." + (f" {esc(book.note)}" if book.note else ""))) + "</p>")
     if book.edition != "original" and book.translator:
         about.append(f"<h2>Translator</h2><p>{esc(book.translator)}</p>")
     if book.period or book.genre:
@@ -121,7 +128,7 @@ def build_epub(book: Book, opts: Options, out_path: str, cover: Optional[Tuple[b
     if book.unknowns and not book.unknowns.lower().startswith("none"):
         about.append(f"<h2>Gaps and uncertainties</h2><p>{esc(_sentence(book.unknowns))}</p>")
     tail = " · ".join(x for x in [opts.publisher, opts.site_url] if x)
-    about.append(f'<p class="fine">{esc(tail)}' + (f'<br/>Edition dated {esc(book.as_of)}' if book.as_of else "") + "</p></div>")
+    about.append(f'<p class="fine">{esc(tail)}' + (f'<br/>Edition dated {esc(human_date(book.as_of))}' if book.as_of else "") + "</p></div>")
     add("about.xhtml", "about", _xhtml("About this edition", "".join(about), "en"))
 
     toc: List[Tuple[str, str]] = []
@@ -133,13 +140,21 @@ def build_epub(book: Book, opts: Options, out_path: str, cover: Optional[Tuple[b
                 head = esc(title or kicker)
                 k = f'<div class="k">{esc(kicker)}</div>' if kicker and title else ""
                 cls = "opener" + (" compact" if flow else "") + (" first" if i == 0 else "")
-                parts.append(f'<section id="u{i}"><header class="{cls}">{k}<h2>{head}</h2>' + ('' if flow else '<p class="orn">❦</p>') + '</header>')
+                sl = esc(lang_attr(book.source_language))
+                src_lang = "" if re.search(r"[A-Za-z]", sources[i]) else f' lang="{sl}" xml:lang="{sl}"'
+                src = f'<p class="src-title"{src_lang}>{esc(sources[i])}</p>' if sources[i] else ""
+                parts.append(f'<section id="u{i}"><header class="{cls}">{k}<h2>{head}</h2>{src}' + ('' if flow else '<p class="orn">❦</p>') + '</header>')
             else:
                 parts.append(f'<section id="u{i}">')
             body = render_blocks(book.units[i].blocks, book.language, opts, epub=True)
             parts.append(body + "</section>")
-            if not ref_mode or i == group[0]:
+            if not ref_mode:
                 toc.append((f"c{gi + 1:03d}.xhtml#u{i}", display_title(kicker, title) or book.title))
+        if ref_mode:
+            # One entry per file, named by the reference range it holds (Stephanus 17a–25a).
+            first, last = display_title(*titles[group[0]]), display_title(*titles[group[-1]])
+            span = first if first == last else f"{first}\u2013{last.split()[-1]}"
+            toc.append((f"c{gi + 1:03d}.xhtml#u{group[0]}", span or book.title))
         add(f"c{gi + 1:03d}.xhtml", f"c{gi + 1:03d}", _xhtml(book.title, "".join(parts), lang, dir_attr=' dir="rtl"' if book.direction == "rtl" else ""))
     # figures
     for xhtml in [f for f in files if f[0].startswith("c")]:

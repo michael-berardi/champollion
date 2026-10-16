@@ -9,6 +9,17 @@ Champollion enforces mechanical requirements and records judgement (VER-1). It d
 ### Added
 
 - `champollion export`: typeset each edition of a work as a PDF (headless Chrome, 6 × 9 in, contents with page numbers) and as an EPUB 3 for Kindle and other readers. Standard library only apart from the PDF engine. See docs/export.md.
+- `champollion export --translator-credit NAME=CREDIT`; PDF document information (author, subject, keywords).
+- `champollion export --mdc`: Egyptian originals in Manuel de Codage are set in standard transliteration.
+- Export refuses a book with a line wider than the page (`PAGE-OVERFLOW`) instead of letting Chrome clip it or shrink every page.
+
+### Fixed
+
+- Egyptian originals: hieroglyph runs wrap inside the page (they had made Chrome print the whole book at about two-thirds size, with lines clipped).
+- Prose paragraphs separated by single line breaks were set as verse; reference divisions that start mid-sentence broke the sentence into two paragraphs; a few numbered table lines put a whole book into the numbered layout.
+- English editions show English division headings with the source-script title beneath, in a serif CJK face; naive title case and headings repeated in the text are tidied; anthology poem titles are set as titles.
+- Diaries and other works of mostly short divisions run on instead of giving each a page; readable edition dates; `--` becomes a dash.
+- EPUB contents of reference-divided works name each file's range (Stephanus 17a–25a); hieroglyph lines wrap on narrow screens.
 
 ## [1.0.1] - 2026-10-13
 

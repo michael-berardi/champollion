@@ -126,3 +126,52 @@ def locate_markers(pdf: str, count: int) -> Dict[int, int]:
 def page_texts(pdf: str) -> List[str]:
     """Plain text of every page (index 0 = page 1)."""
     return _poppler("pdftotext", "-layout", pdf, "-").split("\f")
+
+
+def _pdf_text(value: str) -> bytes:
+    return b"<" + ("\ufeff" + value).encode("utf-16-be").hex().upper().encode() + b">"
+
+
+def set_info(pdf: str, info: Dict[str, str]) -> None:
+    """Write the document information (title, author, subject, keywords, creator) as an incremental update.
+    Chrome records only a title. Only classic cross-reference tables are handled; anything else is named."""
+    data = Path(pdf).read_bytes()
+    tail = data[-2048:]
+    start = re.search(rb"startxref\s+(\d+)\s+%%EOF\s*$", tail)
+    trailer = re.search(rb"trailer\s*<<(.*?)>>\s*startxref", tail, re.S)
+    if not start or not trailer:
+        raise ChampollionError(f"{pdf}: no classic PDF trailer to add document information to", cause="ENGINE-FAILED")
+    size = re.search(rb"/Size\s+(\d+)", trailer.group(1))
+    root = re.search(rb"/Root\s+(\d+\s+\d+\s+R)", trailer.group(1))
+    if not size or not root:
+        raise ChampollionError(f"{pdf}: PDF trailer lacks /Size or /Root", cause="ENGINE-FAILED")
+    num = int(size.group(1))
+    body = b"".join(b"/" + key.encode() + b" " + _pdf_text(value) + b"\n" for key, value in info.items() if value)
+    obj_at = len(data) + 1
+    update = b"\n%d 0 obj\n<<\n%s>>\nendobj\n" % (num, body)
+    xref_at = len(data) + len(update)
+    update += (b"xref\n%d 1\n%010d 00000 n \ntrailer\n<</Size %d /Root %s /Info %d 0 R /Prev %s>>\nstartxref\n%d\n%%%%EOF\n"
+               % (num, obj_at, num + 1, root.group(1), num, start.group(1), xref_at))
+    Path(pdf).write_bytes(data + update)
+
+
+def check_overflow(pdf: str) -> None:
+    """The print page's overflow probe stamps a flag naming any line too wide for the page (typeset.OVERFLOW_PROBE)."""
+    text = _poppler("pdftotext", "-l", "3", pdf, "-")
+    m = re.search(r"§§OVERFLOW§§ ?(.*)", text)
+    if m:
+        raise ChampollionError(f"{pdf}: a line is wider than the page and would be clipped: {m.group(1)[:200]!r}", cause="PAGE-OVERFLOW")
+
+
+def check_scale(pdf: str, page: int = 2, width_pt: float = 432.0) -> None:
+    """Chrome silently shrinks the whole book when any line is wider than the page. The title page is centred, so its
+    text must be centred on the page; a shrunken book is refused by name."""
+    xs = [(float(a), float(b)) for a, b in re.findall(
+        r'<word xMin="([\d.]+)" yMin="[\d.]+" xMax="([\d.]+)"', _poppler("pdftotext", "-bbox", "-f", str(page), "-l", str(page), pdf, "-"))]
+    if not xs:
+        return
+    centre = (min(a for a, _ in xs) + max(b for _, b in xs)) / 2
+    if abs(centre - width_pt / 2) > 8:
+        raise ChampollionError(
+            f"{pdf}: pages are scaled down (title page centred at {centre:.0f}pt, not {width_pt / 2:.0f}pt): "
+            "some line is wider than the page", cause="PAGE-OVERFLOW")

@@ -35,6 +35,7 @@ class Segment:
     text: str = ""
     ref: str = ""     # Stephanus / Bekker marker typeset where it falls
     note: str = ""    # inline footnote call
+    margin: str = ""  # reference number set in the margin beside the line where it falls (a division that runs on mid-sentence)
 
 
 @dataclass

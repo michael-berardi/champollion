@@ -22,18 +22,26 @@ A missing engine fails with a named error (`ENGINE-MISSING`); nothing is downloa
 
 ## What it makes
 
-- **PDF**: 6 × 9 in, mirrored margins, a cover, half title, title page, an "About this edition" page (note, translator, source, gaps and uncertainties from the work's front matter), contents with page numbers, then the text. Verse keeps its lines with hanging indents; reference numbers (verse, section, Stephanus, papyrus line) sit in a left gutter; English gets curly quotes. Fonts come from `--font-css`, a stylesheet of `@font-face` rules with absolute `file:` URLs, or from the system.
+- **PDF**: 6 × 9 in, mirrored margins, a cover, title page, an "About this edition" page (note, translator, source, gaps and uncertainties from the work's front matter), contents with page numbers, then the text. Verse keeps its lines with hanging indents; reference numbers (verse, section, Stephanus, papyrus line) sit in a left gutter; English gets curly quotes, true dashes for `--`, and a spaced dash never starts a line. The document information (title, author, subject with the translator, keywords) is filled in. Fonts come from `--font-css`, a stylesheet of `@font-face` rules with absolute `file:` URLs, or from the system.
 - **EPUB 3**: reflowable, no forced fonts (the reader's font and size apply), a contents navigation file plus an NCX for older Kindle software, a cover, full metadata (title, author, translator as `trl`, language, publisher, date), and byte-identical output for the same input. Kindle accepts EPUB through *Send to Kindle* and the Kindle app.
 
 ## Layout decisions the exporter makes
 
-- **Short divisions run on.** When the average division is under about a page, divisions share pages under small headings instead of each starting a page.
+- **Short divisions run on.** When the average division is under about a page, or at least three in ten divisions are short (a diary's years), divisions share pages under small headings instead of each starting a page.
+- **Long lines are paragraphs.** A block whose lines average 140 characters or more is prose whose paragraphs the source separated with single line breaks; it is set as justified paragraphs, not as verse.
+- **A reference division that starts mid-sentence runs on** from the one before, with its number in the margin beside the line where it begins, so a Stephanus page break does not break a sentence into two paragraphs.
+- **Stray numbers stay text.** A handful of numbered lines in an otherwise unnumbered book (a table) keeps its numbers in the text instead of giving the whole book a reference gutter; a 1, 2, 3… sequence stays a set of references.
+- **Headings.** In an English edition a division title written only in the source script (學而篇第一) gives way to the English kicker (Book 1) and is shown beneath it; naive title case ("Trade Of Latium") takes lower-case small words; a division whose text opens by repeating its own heading drops the repeat.
+- **Anthology poem titles** ("Wang Wei — Clear Creek" as a poem's first line) are set as titles.
+- **Hieroglyphs wrap.** Runs of signs get a break opportunity after every sign.
+- **Manuel de Codage** (`--mdc`): an Egyptian original with no hieroglyphs written in MdC ASCII (`i.wsx nmt m iwnw`) is set in the standard letters (`j.wsḫ nmt m jwnw`), and its edition note says so.
+- **Nothing is silently clipped or shrunk.** Before printing, every line that cannot wrap is laid out at the print column width; a line too wide for the page fails the export (`PAGE-OVERFLOW`) with its opening words, as does a book Chrome scaled down.
 - **Divisions that are only reference numbers** (`Stephanus 17a`, `Verse 4`, `Clause 2`, `Declaration 9`, `Page 3`, `Column 1`) become margin numbers; they get no headings and no contents.
 - **A title-cased opening line** before running prose is set as the division's subtitle.
 - Reference-number syntax is the one the Mouseia reader uses (`src/champollion/export/refs.py`); the parser is a port, kept in step with it.
 
 ## Options
 
-`--edition`, `--format`, `--out`, `--publisher`, `--site-url`, `--motif` (cover emblem), `--deep` and `--accent` (cover colours), `--unit-noun`, `--font-css`, `--epub-font FAMILY=FILE`, `--assets-dir` (resolves `/figures/...` image paths), `--colophon`, `--chrome`, `--json`.
+`--edition`, `--format`, `--out`, `--publisher`, `--site-url`, `--motif` (cover emblem), `--deep` and `--accent` (cover colours), `--unit-noun`, `--font-css`, `--epub-font FAMILY=FILE`, `--assets-dir` (resolves `/figures/...` image paths), `--colophon`, `--mdc`, `--translator-credit NAME=CREDIT` (print a credit where the front matter names a translator, e.g. a house name to the person who made the translation), `--chrome`, `--json`.
 
 The library entry points are `champollion.export.build.export_book`, `load_book`, `print_html` and `build_epub`.

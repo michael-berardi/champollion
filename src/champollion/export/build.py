@@ -9,9 +9,9 @@ from typing import Dict, List, Optional, Sequence, Tuple
 from ..findings import ChampollionError
 from .epub import build_epub
 from .model import Book, DEFAULT_EDITIONS, available_editions, load_book
-from .pdf import find_chrome, html_to_pdf, html_to_png, locate_markers, page_texts, pdf_pages, require_poppler
+from .pdf import check_overflow, check_scale, find_chrome, html_to_pdf, html_to_png, locate_markers, page_texts, pdf_pages, require_poppler, set_info
 import re
-from .typeset import prepare, unit_titles, COVER_CSS, Options, cover_markup, esc, print_html
+from .typeset import convert_mdc, prepare, unit_titles, COVER_CSS, Options, cover_markup, esc, print_html
 
 
 def convert_font(path: str) -> Tuple[str, bytes]:
@@ -64,6 +64,22 @@ def _verify_contents(book: Book, opts: Options, pdf: str, pages_map: Dict[int, i
         raise ChampollionError(f"{book.slug}: contents numbers do not match headings: {', '.join(wrong[:6])}", cause="ENGINE-FAILED")
 
 
+def _finish_pdf(book: Book, opts: Options, out_path: str) -> Dict[str, object]:
+    """Refuse a shrunken book, record the document information, and report it."""
+    check_overflow(out_path)
+    check_scale(out_path)
+    by = f", translated by {book.translator}" if book.edition != "original" and book.translator else ""
+    set_info(out_path, {
+        "Title": f"{book.title} \u2014 {book.edition_label}",
+        "Author": book.author,
+        "Subject": f"{book.edition_label}{by}",
+        "Keywords": ", ".join(x for x in [book.genre, book.period, book.tradition] if x),
+        "Creator": opts.publisher,
+        "Producer": "Champollion",
+    })
+    return {"path": out_path, "bytes": Path(out_path).stat().st_size, "pages": pdf_pages(out_path)}
+
+
 def export_pdf(book: Book, opts: Options, out_path: str, chrome: str) -> Dict[str, object]:
     """Typeset to PDF. For divided books a probe pass (invisible per-division markers) finds each division's page and
     the contents is filled in; the clean result is checked to have the probe's page count, and re-measured if not."""
@@ -90,7 +106,7 @@ def export_pdf(book: Book, opts: Options, out_path: str, chrome: str) -> Dict[st
             if not numbered or pages == probe_pages:
                 if numbered:
                     _verify_contents(book, opts, out_path, pages_map or {})
-                return {"path": out_path, "bytes": Path(out_path).stat().st_size, "pages": pages}
+                return _finish_pdf(book, opts, out_path)
         if numbered and pages_map:
             # The probe's markers shifted a break by a page, so probe and clean page counts never agree. Read each
             # heading's page from the clean PDF itself (within a page of the probe's guess), then confirm it still holds.
@@ -108,7 +124,7 @@ def export_pdf(book: Book, opts: Options, out_path: str, chrome: str) -> Dict[st
                 opts.markers, opts.toc_pages = False, fixed
                 html_to_pdf(print_html(book, opts), out_path, chrome, _timeout(html))
                 _verify_contents(book, opts, out_path, fixed)
-                return {"path": out_path, "bytes": Path(out_path).stat().st_size, "pages": pdf_pages(out_path)}
+                return _finish_pdf(book, opts, out_path)
         raise ChampollionError(f"{book.slug}: contents page numbers did not settle after 3 passes", cause="ENGINE-FAILED")
     finally:
         Path(probe).unlink(missing_ok=True)
@@ -118,6 +134,10 @@ def export_book(work: str, edition: str, formats: Sequence[str], out_dir: str, o
                 chrome: Optional[str] = None, epub_fonts: Sequence[str] = (),
                 editions: Optional[Dict[str, Dict[str, object]]] = None) -> List[Dict[str, object]]:
     book = load_book(work, edition, editions)
+    book.translator = opts.translator_names.get(book.translator, book.translator)
+    if opts.mdc_transliteration and convert_mdc(book):
+        book.note = ("Its transliteration is set in standard Egyptological letters (\ua723 j \ua725 \u1e25 \u1e2b \u1e96 \u0161 \u1e6f \u1e0f), "
+                     "converted from the source\u2019s Manuel de Codage.")
     results: List[Dict[str, object]] = []
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
