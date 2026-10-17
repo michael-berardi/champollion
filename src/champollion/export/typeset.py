@@ -256,7 +256,7 @@ def render_blocks(blocks: List[Block], lang: str, opts: Options, epub: bool = Fa
             out.append(f'<p class="{" ".join(cls)}">{_ref(ln.lead)}{_segments(ln, smart)}</p>')
     if lang_attr(lang).split("-")[0].lower() == "egy":
         out = [_HIEROGLYPHS.sub(lambda m: "<wbr/>".join(m.group(0)), chunk) for chunk in out]
-    rtl = ' dir="rtl"' if lang_attr(lang).split("-")[0].lower() in {"ar", "fa", "he", "ur", "ps", "syr", "arc", "yi"} else ""
+    rtl = ' dir="rtl"' if lang_attr(lang).split("-")[0].lower() in RTL_LANGS else ""
     return f'<div class="text"{lang_part}{rtl}>' + "\n".join(out) + "</div>"
 
 
@@ -586,7 +586,11 @@ def is_flow(book: Book) -> bool:
 # Chrome clips print content to the page box, so reference numbers cannot hang into the margin. They sit in a
 # .46in gutter inside the text column instead; the page margins give up that width so the text itself stays
 # centred exactly as in an unnumbered book (inner .86in / outer .72in).
-REFS_PAGE_CSS = "@page body{margin:.95in .79in .98in .33in}.unit>.opener,.unit>.opener.compact{padding-inline-start:.46in}"
+RTL_LANGS = {"ar", "fa", "he", "ur", "ps", "syr", "arc", "yi"}
+# Reference numbers hang in a .46in gutter beside the text, so that side's page margin is .33in and the text column is
+# .79in from both edges. Right-to-left books put the gutter on the right; openers get the same padding to centre on the column.
+REFS_PAGE_CSS = "@page body{margin:.95in .79in .98in .33in}.unit>.opener,.unit>.opener.compact{padding-left:.46in}"
+REFS_PAGE_CSS_RTL = "@page body{margin:.95in .33in .98in .79in}.unit>.opener,.unit>.opener.compact{padding-right:.46in}"
 
 
 # Before printing, lay the text out at the print column width and flag any line that cannot fit: Chrome would
@@ -646,7 +650,7 @@ def print_html(book: Book, opts: Options, base_css: str = "") -> str:
     head = (f'<meta charset="utf-8"/><title>{esc(book.title)} — {esc(book.edition_label)}</title>'
             f'<meta name="author" content="{esc(book.author)}"/>'
             + (f'<link rel="stylesheet" href="{esc(Path(opts.font_css).as_uri())}"/>' if opts.font_css else "")
-            + f'<style>{COVER_CSS}{PRINT_CSS}{REFS_PAGE_CSS if has_refs else ""}{folio_css}{base_css}</style>')
+            + f'<style>{COVER_CSS}{PRINT_CSS}{(REFS_PAGE_CSS_RTL if lang_attr(book.language).split("-")[0].lower() in RTL_LANGS else REFS_PAGE_CSS) if has_refs else ""}{folio_css}{base_css}</style>')
     return (f'<!doctype html><html lang="{esc(book.language and lang or "en")}"{dir_attr}><head>{head}</head><body>'
             f'{cover}{title_page}<section class="front">{_imprint_markup(book, opts)}</section>{toc}{"".join(body)}'
             + (OVERFLOW_PROBE % ("'4.88in'" if has_refs else "'4.42in'")) + '</body></html>')

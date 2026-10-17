@@ -6,6 +6,12 @@ Champollion enforces mechanical requirements and records judgement (VER-1). It d
 
 ## [Unreleased]
 
+## [1.1.4] - 2026-10-17
+
+### Fixed
+
+- Right-to-left books with hanging reference numbers mirror the page margins and opener padding, so the text column stays centred with the number gutter on the right.
+
 ## [1.1.3] - 2026-10-17
 
 ### Fixed

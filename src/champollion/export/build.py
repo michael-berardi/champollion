@@ -82,8 +82,10 @@ def _finish_pdf(book: Book, opts: Options, out_path: str) -> Dict[str, object]:
 
 
 def export_pdf(book: Book, opts: Options, out_path: str, chrome: str) -> Dict[str, object]:
-    """Typeset to PDF. For divided books a probe pass (invisible per-division markers) finds each division's page and
-    the contents is filled in; the clean result is checked to have the probe's page count, and re-measured if not."""
+    """Typeset to PDF. A probe pass prints the PDF page number as the folio, so the first page ending on its own number
+    is where the text begins; the clean pass then prints folios from 1 there. For divided books the probe's invisible
+    per-division markers also give each division's page for the contents; the clean result is checked to have the
+    probe's page count, and re-measured if not."""
     require_poppler()
     book = prepare(book)
     numbered = book.divided and len(book.units) > 1 and not book.ref_mode

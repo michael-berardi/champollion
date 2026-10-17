@@ -148,6 +148,23 @@ class TypesetCase(unittest.TestCase):
             self.assertIn("@page body{margin:.95in .79in .98in .33in}", html)
             self.assertNotIn("half-title", html)
 
+    def test_folio_restarts_at_one_and_contents_follow(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            book = prepare(load_book(write(tmp, "demo-work.md", WORK), "musean"))
+            plain = print_html(book, Options())
+            self.assertNotIn("@counter-style folio", plain)
+            shifted = print_html(book, Options(folio_offset=4, folio_pages=20))
+            self.assertIn("@counter-style folio{system:fixed 5;symbols:\"1\" \"2\"", shifted)
+            self.assertIn("content:counter(page,folio)", shifted)
+
+    def test_right_to_left_reference_books_mirror_the_gutter(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            book = prepare(load_book(write(tmp, "demo-work.md", WORK.replace("language: grc", "language: ar")), "original"))
+            self.assertEqual(book.language, "ar")
+            html = print_html(book, Options())
+            self.assertIn("@page body{margin:.95in .33in .98in .79in}", html)
+            self.assertNotIn("@page body{margin:.95in .79in .98in .33in}", html)
+
     def test_subtitle_lines_and_contents(self):
         with tempfile.TemporaryDirectory() as tmp:
             book = load_book(write(tmp, "chaptered.md", CHAPTERS), "musean")

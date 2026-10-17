@@ -71,7 +71,7 @@ rights and missing source evidence cannot be waived.
 From an installed, verified release or a reviewed tagged checkout:
 
 ```sh
-champollion vendor --into vendor --tag v1.1.3
+champollion vendor --into vendor --tag v1.1.4
 champollion verify-vendor vendor/champollion
 python3 vendor/champollion/__main__.py rules
 ```
