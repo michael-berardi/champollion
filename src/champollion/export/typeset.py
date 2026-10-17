@@ -48,6 +48,8 @@ class Options:
     mdc_transliteration: bool = False  # Egyptian originals written in Manuel de Codage are set in standard transliteration
     # PDF-only: {unit_index: page number} for the contents; None = placeholders.
     toc_pages: Optional[Dict[int, int]] = None
+    folio_offset: int = 0         # PDF pages before the first page of text; the printed folio is 1 on that page
+    folio_pages: int = 0          # upper bound on the book's page count, sizing the folio list
     markers: bool = False         # pass 1: invisible per-unit markers used to find page numbers
 
 
@@ -356,9 +358,8 @@ PRINT_CSS = '''
 @page{size:6in 9in;margin:0}
 @page cover{margin:0}
 @page front{margin:1in .8in 1in .8in}
-@page body{margin:.95in .72in .98in .86in;
+@page body{margin:.95in .79in .98in .79in;
  @bottom-center{content:counter(page);font:400 9.6pt/1 var(--serif);color:var(--soft);font-variant-numeric:oldstyle-nums;vertical-align:top;padding-top:.22in}}
-@page body:left{margin:.95in .86in .98in .72in}
 *{box-sizing:border-box}
 html{font-size:10.6pt}
 body{margin:0;color:var(--ink);font-family:var(--serif);line-height:1.5;font-kerning:normal;font-feature-settings:"liga","kern","onum";
@@ -464,7 +465,8 @@ def _toc_markup(book: Book, opts: Options, titles) -> str:
     grid = n > 40 and sum(1 for _, t in titles if not t) / n > 0.8
     items: List[str] = []
     for i, (kicker, title) in enumerate(titles):
-        num = (str(numbered.get(i, "")) if numbered is not None else "000")
+        # numbered holds physical PDF pages; the printed folio restarts at 1 on the first page of text
+        num = (str(numbered[i] - opts.folio_offset) if numbered and i in numbered else "" if numbered is not None else "000")
         if grid:
             label = re.sub(r"^\D+\s*", "", kicker) or kicker
             items.append(f'<li><a href="#u{i}"><span class="g">{esc(label)}</span><span class="n">{esc(num)}</span></a></li>')
@@ -584,7 +586,7 @@ def is_flow(book: Book) -> bool:
 # Chrome clips print content to the page box, so reference numbers cannot hang into the margin. They sit in a
 # .46in gutter inside the text column instead; the page margins give up that width so the text itself stays
 # centred exactly as in an unnumbered book (inner .86in / outer .72in).
-REFS_PAGE_CSS = "@page body{margin:.95in .72in .98in .40in}@page body:left{margin:.95in .86in .98in .26in}"
+REFS_PAGE_CSS = "@page body{margin:.95in .79in .98in .33in}.unit>.opener,.unit>.opener.compact{padding-inline-start:.46in}"
 
 
 # Before printing, lay the text out at the print column width and flag any line that cannot fit: Chrome would
@@ -594,6 +596,7 @@ document.querySelectorAll('.text .ln,.text p:not(.prose),.opener h2,.toc li,.tp-
 if(e.scrollWidth>e.clientWidth+2&&bad.length<3)bad.push(e.textContent.slice(0,60))});b.style.width=w;
 if(bad.length){var f=document.createElement('p');f.textContent='\u00a7\u00a7OVERFLOW\u00a7\u00a7 '+bad.join(' | ');
 b.insertBefore(f,b.firstChild)}})();</script>"""
+
 
 
 def print_html(book: Book, opts: Options, base_css: str = "") -> str:
@@ -633,11 +636,17 @@ def print_html(book: Book, opts: Options, base_css: str = "") -> str:
         body.append(f'<section class="unit{" first" if i == 0 else ""}" id="u{i}">{opener}{text}</section>')
     if flow:
         body = [f'<div class="flow">{"".join(body)}</div>']
+    folio_css = ""
+    if opts.folio_offset > 0:
+        # Chrome ignores counter-reset on the page counter, so a counter style maps PDF page F+1 onto the folio "1".
+        syms = " ".join(f'"{n}"' for n in range(1, max(opts.folio_pages - opts.folio_offset, 1) + 1))
+        folio_css = (f"@counter-style folio{{system:fixed {opts.folio_offset + 1};symbols:{syms};fallback:decimal}}"
+                     "@page body{@bottom-center{content:counter(page,folio)}}")
     toc = _toc_markup(book, opts, titles) if book.divided and len(book.units) > 1 and not ref_mode else ""
     head = (f'<meta charset="utf-8"/><title>{esc(book.title)} — {esc(book.edition_label)}</title>'
             f'<meta name="author" content="{esc(book.author)}"/>'
             + (f'<link rel="stylesheet" href="{esc(Path(opts.font_css).as_uri())}"/>' if opts.font_css else "")
-            + f'<style>{COVER_CSS}{PRINT_CSS}{REFS_PAGE_CSS if has_refs else ""}{base_css}</style>')
+            + f'<style>{COVER_CSS}{PRINT_CSS}{REFS_PAGE_CSS if has_refs else ""}{folio_css}{base_css}</style>')
     return (f'<!doctype html><html lang="{esc(book.language and lang or "en")}"{dir_attr}><head>{head}</head><body>'
             f'{cover}{title_page}<section class="front">{_imprint_markup(book, opts)}</section>{toc}{"".join(body)}'
             + (OVERFLOW_PROBE % ("'4.88in'" if has_refs else "'4.42in'")) + '</body></html>')

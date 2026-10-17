@@ -6,6 +6,13 @@ Champollion enforces mechanical requirements and records judgement (VER-1). It d
 
 ## [Unreleased]
 
+## [1.1.3] - 2026-10-17
+
+### Fixed
+
+- PDF page numbers restart at 1 on the first page of text instead of counting the cover, title page, imprint and contents; the contents page numbers follow the same numbering.
+- PDF text pages have the same margin on both sides instead of a wider inner margin that alternated by page, and chapter openers in books with hanging reference numbers are centred over the text column.
+
 ## [1.1.2] - 2026-10-16
 
 ### Fixed

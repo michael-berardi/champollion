@@ -10,7 +10,7 @@ from .. import __version__
 from ..findings import ChampollionError
 from .epub import build_epub
 from .model import Book, DEFAULT_EDITIONS, available_editions, load_book
-from .pdf import check_overflow, check_scale, find_chrome, html_to_pdf, html_to_png, locate_markers, page_texts, pdf_pages, require_poppler, set_info
+from .pdf import check_overflow, check_scale, find_chrome, html_to_pdf, html_to_png, locate_body, locate_markers, page_texts, pdf_pages, require_poppler, set_info
 import re
 from .typeset import convert_mdc, prepare, unit_titles, COVER_CSS, Options, cover_markup, esc, print_html
 
@@ -48,7 +48,7 @@ def cover_image(book: Book, opts: Options, chrome: str):
 
 def _timeout(html: str) -> int:
     """Chrome prints a book in seconds; a stall is cut off and retried, sooner for small books."""
-    return int(min(1500, max(120, 120 + len(html) / 12000)))
+    return int(min(1500, max(240, 240 + len(html) / 12000)))
 
 
 def _verify_contents(book: Book, opts: Options, pdf: str, pages_map: Dict[int, int]) -> None:
@@ -92,14 +92,16 @@ def export_pdf(book: Book, opts: Options, out_path: str, chrome: str) -> Dict[st
     try:
         for attempt in range(3):
             probe_pages = 0
+            opts.markers, opts.toc_pages, opts.folio_offset = True, pages_map, 0
+            html = print_html(book, opts)
+            html_to_pdf(html, probe, chrome, _timeout(html))
+            opts.folio_offset, probe_pages = locate_body(probe) - 1, pdf_pages(probe)
+            opts.folio_pages = probe_pages + 20
             if numbered:
-                opts.markers, opts.toc_pages = True, pages_map
-                html = print_html(book, opts)
-                html_to_pdf(html, probe, chrome, _timeout(html))
                 found = locate_markers(probe, len(book.units))
                 if len(found) != len(book.units):
                     raise ChampollionError(f"{book.slug}: found {len(found)} of {len(book.units)} division markers in the probe", cause="ENGINE-FAILED")
-                pages_map, probe_pages = found, pdf_pages(probe)
+                pages_map = found
             opts.markers, opts.toc_pages = False, pages_map
             html = print_html(book, opts)
             html_to_pdf(html, out_path, chrome, _timeout(html))

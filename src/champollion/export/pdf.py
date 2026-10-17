@@ -144,6 +144,16 @@ def locate_markers(pdf: str, count: int) -> Dict[int, int]:
     return found
 
 
+def locate_body(pdf: str) -> int:
+    """PDF page where the text begins. Only text pages print a folio, and a probe prints the PDF page number as
+    that folio, so the first page ending on its own number is the first page of text."""
+    for page, chunk in enumerate(_poppler("pdftotext", "-layout", pdf, "-").split("\f"), 1):
+        lines = [ln for ln in re.sub("[\u202a-\u202e\u2066-\u2069]", "", chunk).split("\n") if ln.strip()]  # bidi controls wrap folios on right-to-left books
+        if page > 2 and lines and lines[-1].strip() == str(page):
+            return page
+    raise ChampollionError(f"no printed folio found in {pdf}", cause="ENGINE-FAILED")
+
+
 def page_texts(pdf: str) -> List[str]:
     """Plain text of every page (index 0 = page 1)."""
     return _poppler("pdftotext", "-layout", pdf, "-").split("\f")

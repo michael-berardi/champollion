@@ -145,7 +145,7 @@ class TypesetCase(unittest.TestCase):
             self.assertNotIn('class="front toc"', html)  # and no contents of 125 page numbers
             self.assertIn("“Men of Athens,”", html)
             # numbered text keeps the same visual centring as unnumbered text: the number gutter comes out of the page margins
-            self.assertIn("@page body{margin:.95in .72in .98in .40in}", html)
+            self.assertIn("@page body{margin:.95in .79in .98in .33in}", html)
             self.assertNotIn("half-title", html)
 
     def test_subtitle_lines_and_contents(self):
