@@ -10,7 +10,7 @@ from .. import __version__
 from ..findings import ChampollionError
 from .epub import build_epub
 from .model import Book, DEFAULT_EDITIONS, available_editions, load_book
-from .pdf import check_overflow, check_scale, find_chrome, html_to_pdf, html_to_png, locate_body, locate_markers, page_texts, pdf_pages, require_poppler, set_info
+from .pdf import check_overflow, check_scale, find_chrome, html_to_pdf, html_to_png, check_folio, locate_body, locate_markers, page_texts, pdf_pages, require_poppler, set_info
 import re
 from .typeset import convert_mdc, prepare, unit_titles, COVER_CSS, Options, cover_markup, esc, print_html
 
@@ -69,6 +69,7 @@ def _finish_pdf(book: Book, opts: Options, out_path: str) -> Dict[str, object]:
     """Refuse a shrunken book, record the document information, and report it."""
     check_overflow(out_path)
     check_scale(out_path)
+    check_folio(out_path, opts.folio_offset)
     by = f", translated by {book.translator}" if book.edition != "original" and book.translator else ""
     set_info(out_path, {
         "Title": f"{book.title} \u2014 {book.edition_label}",

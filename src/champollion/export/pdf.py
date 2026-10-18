@@ -154,6 +154,16 @@ def locate_body(pdf: str) -> int:
     raise ChampollionError(f"no printed folio found in {pdf}", cause="ENGINE-FAILED")
 
 
+def check_folio(pdf: str, offset: int) -> None:
+    """The first page of text must print the folio 1, whichever path produced the PDF."""
+    if offset <= 0:
+        return
+    texts = _poppler("pdftotext", "-layout", pdf, "-").split("\f")
+    lines = [ln for ln in re.sub("[\u202a-\u202e\u2066-\u2069]", "", texts[offset] if offset < len(texts) else "").split("\n") if ln.strip()]
+    if not lines or lines[-1].strip() != "1":
+        raise ChampollionError(f"{pdf}: page {offset + 1} should be the first page of text and print folio 1, found {lines[-1].strip() if lines else 'nothing'!r}", cause="ENGINE-FAILED")
+
+
 def page_texts(pdf: str) -> List[str]:
     """Plain text of every page (index 0 = page 1)."""
     return _poppler("pdftotext", "-layout", pdf, "-").split("\f")

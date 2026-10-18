@@ -6,6 +6,12 @@ Champollion enforces mechanical requirements and records judgement (VER-1). It d
 
 ## [Unreleased]
 
+## [1.1.5] - 2026-10-17
+
+### Fixed
+
+- A PDF is refused by name unless its first page of text prints the folio 1, including when the contents numbers had to be re-measured after three passes.
+
 ## [1.1.4] - 2026-10-17
 
 ### Fixed
