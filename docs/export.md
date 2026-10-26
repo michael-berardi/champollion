@@ -40,8 +40,14 @@ A missing engine fails with a named error (`ENGINE-MISSING`); nothing is downloa
 - **A title-cased opening line** before running prose is set as the division's subtitle.
 - Reference-number syntax is the one the Mouseia reader uses (`src/champollion/export/refs.py`); the parser is a port, kept in step with it.
 
+## Source emphasis
+
+Pass `--inline-emphasis` (or `Options(inline_emphasis=True)` in Python) when an edition uses `*italics*` and `**bold**` to record source emphasis. Both PDF and EPUB preserve it as italic and bold text. The option is off by default, so asterisks in existing editions remain literal.
+
+Only simple paired asterisks within one line are recognized. Unpaired markers, nested markers, links and HTML are not interpreted; text is escaped. Keep an emphasized passage on one source line, or mark each verse line separately. This typesetting option changes no translation checks, profiles or publication requirements.
+
 ## Options
 
-`--edition`, `--format`, `--out`, `--publisher`, `--site-url`, `--motif` (cover emblem), `--deep` and `--accent` (cover colours), `--unit-noun`, `--font-css`, `--epub-font FAMILY=FILE`, `--assets-dir` (resolves `/figures/...` image paths), `--colophon`, `--mdc`, `--translator-credit NAME=CREDIT` (print a credit where the front matter names a translator, e.g. a house name to the person who made the translation), `--chrome`, `--json`.
+`--edition`, `--format`, `--out`, `--publisher`, `--site-url`, `--motif` (cover emblem), `--deep` and `--accent` (cover colours), `--unit-noun`, `--font-css`, `--epub-font FAMILY=FILE`, `--assets-dir` (resolves `/figures/...` image paths), `--colophon`, `--mdc`, `--inline-emphasis`, `--translator-credit NAME=CREDIT` (print a credit where the front matter names a translator, e.g. a house name to the person who made the translation), `--chrome`, `--json`.
 
 The library entry points are `champollion.export.build.export_book`, `load_book`, `print_html` and `build_epub`.

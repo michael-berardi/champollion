@@ -6,6 +6,13 @@ Champollion enforces mechanical requirements and records judgement (VER-1). It d
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-26
+
+### Added
+
+- Opt-in `champollion export --inline-emphasis` and Python `Options(inline_emphasis=True)` preserve source emphasis written as `*italics*` and `**bold**` in PDF and EPUB books. Text remains escaped; malformed, nested and cross-line markers stay literal. Synthetic fixtures cover source references, verse, Unicode, safe escaping, and unchanged default output.
+- Migration: no checker, profile, protocol or vendored-gate change. The option is off by default; existing exports retain their literal asterisks. Enable it only for editions that deliberately encode emphasis this way.
+
 ## [1.1.5] - 2026-10-17
 
 ### Fixed

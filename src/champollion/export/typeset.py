@@ -51,6 +51,7 @@ class Options:
     folio_offset: int = 0         # PDF pages before the first page of text; the printed folio is 1 on that page
     folio_pages: int = 0          # upper bound on the book's page count, sizing the folio list
     markers: bool = False         # pass 1: invisible per-unit markers used to find page numbers
+    inline_emphasis: bool = False  # opt-in paired *italics* and **bold**; appended to preserve positional arguments
 
 
 def split_label(label: str, index: int, noun: str) -> Tuple[str, str]:
@@ -193,7 +194,21 @@ def smarten(text: str, prev: str = "") -> str:
     return re.sub(r" (?=[\u2014\u2013] )", "\u00a0", text)    # a spaced dash stays with the word before it
 
 
-def _segments(line: Line, smart: bool = False) -> str:
+def _emphasis_html(text: str) -> str:
+    """Escape text and interpret only simple paired asterisks, never arbitrary HTML."""
+    paired = re.compile(r'(?<!\*)(\*\*|\*)([^\s*](?:[^*\n]*?[^\s*])?)\1(?!\*)')
+    out = []
+    cursor = 0
+    for match in paired.finditer(text):
+        out.append(esc(text[cursor:match.start()]))
+        tag = 'strong' if len(match.group(1)) == 2 else 'em'
+        out.append(f'<{tag}>{esc(match.group(2))}</{tag}>')
+        cursor = match.end()
+    out.append(esc(text[cursor:]))
+    return ''.join(out)
+
+
+def _segments(line: Line, smart: bool = False, emphasis: bool = False) -> str:
     out = []
     prev = ""
     for seg in line.segments:
@@ -206,7 +221,7 @@ def _segments(line: Line, smart: bool = False) -> str:
         else:
             text = smarten(seg.text, prev) if smart else seg.text
             prev = text
-            out.append(esc(text))
+            out.append(_emphasis_html(text) if emphasis else esc(text))
     return "".join(out)
 
 
@@ -233,15 +248,15 @@ def render_blocks(blocks: List[Block], lang: str, opts: Options, epub: bool = Fa
             # Paragraphs a source separates with single line breaks: prose, not verse.
             for k, ln in enumerate(block.lines):
                 cls = ["prose", "para"] + (["numbered"] if ln.lead else []) + (["rubric"] if ln.rubric else []) + (["cont"] if k else [])
-                out.append(f'<p class="{" ".join(cls)}">{_ref(ln.lead)}{_segments(ln, smart)}</p>')
+                out.append(f'<p class="{" ".join(cls)}">{_ref(ln.lead)}{_segments(ln, smart, opts.inline_emphasis)}</p>')
             continue
         if len(block.lines) > 1:
             head = ""
             if smart and is_poem_title(block):
-                head = f'<span class="ln poem-title">{_segments(block.lines[0], smart)}</span>'
+                head = f'<span class="ln poem-title">{_segments(block.lines[0], smart, opts.inline_emphasis)}</span>'
                 block = Block(block.kind, block.ref, block.lines[1:])
             lines = head + "".join(
-                f'<span class="ln{" rubric" if ln.rubric else ""}">{_ref(ln.lead)}{_segments(ln, smart)}</span>' for ln in block.lines)
+                f'<span class="ln{" rubric" if ln.rubric else ""}">{_ref(ln.lead)}{_segments(ln, smart, opts.inline_emphasis)}</span>' for ln in block.lines)
             keep = " keep" if len(block.lines) <= 10 else ""
             out.append(f'<p class="lines{" numbered" if any(l.lead for l in block.lines) else ""}{keep}">{lines}</p>')
         else:
@@ -253,7 +268,7 @@ def render_blocks(blocks: List[Block], lang: str, opts: Options, epub: bool = Fa
                 cls.append("rubric")
             if index == 0 and dek_ok(ln, blocks):
                 cls = ["dek"]
-            out.append(f'<p class="{" ".join(cls)}">{_ref(ln.lead)}{_segments(ln, smart)}</p>')
+            out.append(f'<p class="{" ".join(cls)}">{_ref(ln.lead)}{_segments(ln, smart, opts.inline_emphasis)}</p>')
     if lang_attr(lang).split("-")[0].lower() == "egy":
         out = [_HIEROGLYPHS.sub(lambda m: "<wbr/>".join(m.group(0)), chunk) for chunk in out]
     rtl = ' dir="rtl"' if lang_attr(lang).split("-")[0].lower() in RTL_LANGS else ""

@@ -36,7 +36,7 @@ Use a new directory for the install and example below. On macOS or Linux:
 ```sh
 python3 -m venv .venv
 . .venv/bin/activate
-python3 -m pip install "champollion-protocol @ git+https://github.com/michael-berardi/champollion.git@v1.1.5"
+python3 -m pip install "champollion-protocol @ git+https://github.com/michael-berardi/champollion.git@v1.2.0"
 ```
 
 On Windows, create the environment with `py -3 -m venv .venv`, activate it with `.\.venv\Scripts\Activate.ps1`, then run the same install command using `python -m pip`.
@@ -48,7 +48,7 @@ Tagged releases also include a wheel, a source archive, and `SHA256SUMS` on the 
 After installing, download the example and run its checks:
 
 ```sh
-git clone --branch v1.1.5 --depth 1 https://github.com/michael-berardi/champollion.git
+git clone --branch v1.2.0 --depth 1 https://github.com/michael-berardi/champollion.git
 champollion check --root champollion/examples/latin-to-spanish
 champollion report --root champollion/examples/latin-to-spanish --json
 ```
@@ -94,7 +94,7 @@ Use `report --json` to get a structured report for scripts. Exit codes are `0` f
 
 ## Publish the editions as books
 
-`champollion export` typesets every edition of a work as a PDF and a Kindle-ready EPUB, from the same files the checks read. See [docs/export.md](docs/export.md).
+`champollion export` typesets every edition of a work as a PDF and a Kindle-ready EPUB, from the same files the checks read. Add `--inline-emphasis` to preserve source emphasis recorded as `*italics*` and `**bold**`; existing editions keep literal asterisks by default. See [docs/export.md](docs/export.md).
 
 ```sh
 champollion export works/analects.md --out books/ --publisher "My Press"

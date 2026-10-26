@@ -87,6 +87,7 @@ def _parser() -> argparse.ArgumentParser:
     export.add_argument("--translator-credit", action="append", default=[], metavar="NAME=CREDIT",
                         help="print CREDIT where the front matter names translator NAME (repeatable)")
     export.add_argument("--mdc", action="store_true", help="set Egyptian originals written in Manuel de Codage in standard transliteration")
+    export.add_argument("--inline-emphasis", action="store_true", help="render paired *italics* and **bold** in edition text; off by default")
     export.add_argument("--chrome", help="Chrome/Chromium binary (or $CHAMPOLLION_CHROME)")
     _json_flag(export)
     vendor = commands.add_parser("vendor")
@@ -258,7 +259,7 @@ def _dispatch(args: argparse.Namespace) -> int:
         opts = Options(publisher=args.publisher, site_url=args.site_url, unit_noun=args.unit_noun, font_css=args.font_css or "",
                        assets_dir=args.assets_dir, colophon=args.colophon, theme=Theme(deep=args.deep, accent=args.accent, motif=args.motif),
                        translator_names=dict(x.split("=", 1) for x in args.translator_credit if "=" in x),
-                       mdc_transliteration=args.mdc)
+                       mdc_transliteration=args.mdc, inline_emphasis=args.inline_emphasis)
         editions = args.edition or available_editions(args.work)
         formats = args.format or ["epub", "pdf"]
         files = []
