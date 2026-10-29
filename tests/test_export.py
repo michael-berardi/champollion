@@ -372,6 +372,28 @@ class EpubCase(unittest.TestCase):
             self.assertEqual(TTFont(io.BytesIO(first), recalcTimestamp=False)["head"].modified, 3700000000)
 
 
+    def test_epub_output_ignores_the_clock_and_source_date_epoch(self):
+        # The exporter reads no clock: a SOURCE_DATE_EPOCH far from now must not change its bytes.
+        import os
+        with tempfile.TemporaryDirectory() as tmp:
+            work = write(tmp, "chaptered.md", CHAPTERS)
+            outputs = []
+            for name, epoch in (("a.epub", None), ("b.epub", "1000000000")):
+                saved = os.environ.get("SOURCE_DATE_EPOCH")
+                try:
+                    if epoch is None:
+                        os.environ.pop("SOURCE_DATE_EPOCH", None)
+                    else:
+                        os.environ["SOURCE_DATE_EPOCH"] = epoch
+                    build_epub(load_book(work, "original"), Options(), str(Path(tmp) / name))
+                finally:
+                    if saved is None:
+                        os.environ.pop("SOURCE_DATE_EPOCH", None)
+                    else:
+                        os.environ["SOURCE_DATE_EPOCH"] = saved
+                outputs.append((Path(tmp) / name).read_bytes())
+            self.assertEqual(outputs[0], outputs[1])
+
 class ModelCase(unittest.TestCase):
     def test_editions_present_and_missing(self):
         with tempfile.TemporaryDirectory() as tmp:
