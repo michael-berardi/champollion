@@ -1,5 +1,6 @@
 """Book export: reference-number parsing, typesetting decisions, EPUB structure, optional PDF."""
 import contextlib
+import importlib.util
 import io
 import json
 import re
@@ -334,6 +335,7 @@ class EpubCase(unittest.TestCase):
                 build_epub(load_book(work, "original"), Options(), str(Path(tmp) / name))
             self.assertEqual((Path(tmp) / "a.epub").read_bytes(), (Path(tmp) / "b.epub").read_bytes())
 
+    @unittest.skipUnless(importlib.util.find_spec("fontTools"), "fonttools not installed (needed to re-save WOFF fonts)")
     def test_embedded_font_is_byte_stable_across_builds(self):
         # fontTools stamps head.modified with the clock on every save; a font converted at another
         # second must still produce identical bytes, and keep the source timestamp.
