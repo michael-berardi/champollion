@@ -6,6 +6,17 @@ Champollion enforces mechanical requirements and records judgement (VER-1). It d
 
 ## [Unreleased]
 
+## [1.2.2] - 2026-10-29
+
+### Added
+
+- Optional extras declare the engines that embedded fonts and cover images need: `pip install "champollion-protocol[fonts]"` adds `fonttools` and `brotli` (woff2 fonts), and `pip install "champollion-protocol[images]"` adds `Pillow` (JPEG cover). Missing engines still fail with a named `ENGINE-MISSING` error, and the default install stays dependency-free.
+- Migration: no checker, profile, protocol or vendored-gate change. Output is unchanged for a build that already has its engines; a woff2 font without `brotli` now names the `fonts` extra in its error.
+
+### Tests
+
+- Hermetic tests for the woff2 font path and the JPEG cover path skip when their engine is not installed; a test confirms the cover stays PNG without Pillow. The SOURCE_DATE_EPOCH guard test on `main` ships in this release line.
+
 ## [1.2.1] - 2026-10-29
 
 ### Fixed

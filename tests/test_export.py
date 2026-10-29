@@ -394,6 +394,66 @@ class EpubCase(unittest.TestCase):
                 outputs.append((Path(tmp) / name).read_bytes())
             self.assertEqual(outputs[0], outputs[1])
 
+class OptionalEngineTests(unittest.TestCase):
+    # Hermetic: each test skips when its optional engine is absent, so the suite never depends on this machine.
+    @unittest.skipUnless(importlib.util.find_spec("fontTools") and importlib.util.find_spec("brotli"),
+                         "fonttools and brotli not installed (needed for woff2 fonts)")
+    def test_woff2_font_converts_with_fonttools_and_brotli(self):
+        from fontTools.fontBuilder import FontBuilder
+        from fontTools.pens.ttGlyphPen import TTGlyphPen
+        from fontTools.ttLib import TTFont
+        from champollion.export.build import convert_font
+        with tempfile.TemporaryDirectory() as tmp:
+            pen = TTGlyphPen(None)
+            pen.moveTo((0, 0)); pen.lineTo((0, 500)); pen.lineTo((500, 0)); pen.closePath()
+            glyph = pen.glyph()
+            fb = FontBuilder(1000, isTTF=True)
+            fb.setupGlyphOrder([".notdef", "A"])
+            fb.setupCharacterMap({65: "A"})
+            fb.setupGlyf({".notdef": glyph, "A": glyph})
+            fb.setupHorizontalMetrics({".notdef": (500, 0), "A": (500, 0)})
+            fb.setupHorizontalHeader(ascent=800, descent=-200)
+            fb.setupNameTable({"familyName": "Synthetic", "styleName": "Regular"})
+            fb.setupOS2(); fb.setupPost()
+            fb.setupHead(unitsPerEm=1000, created=3700000000, modified=3700000000)
+            ttf = str(Path(tmp) / "synthetic.ttf")
+            fb.save(ttf)
+            woff2 = Path(tmp) / "synthetic.woff2"
+            font = TTFont(ttf, recalcTimestamp=False)
+            font.flavor = "woff2"
+            font.save(str(woff2))
+            name, data = convert_font(str(woff2))
+            self.assertEqual(name, "synthetic.ttf")
+            self.assertEqual(TTFont(io.BytesIO(data), recalcTimestamp=False)["head"].modified, 3700000000)
+
+    @unittest.skipUnless(importlib.util.find_spec("PIL"), "Pillow not installed (needed for a JPEG cover)")
+    def test_pillow_writes_a_progressive_jpeg_cover(self):
+        from PIL import Image
+        from champollion.export.build import jpeg_cover
+        png = io.BytesIO()
+        Image.new("RGB", (40, 60), (0, 0, 0)).save(png, "PNG")
+        data, ext = jpeg_cover(png.getvalue())
+        self.assertEqual(ext, "jpg")
+        self.assertEqual(data[:2], b"\xff\xd8")
+        self.assertEqual(Image.open(io.BytesIO(data)).format, "JPEG")
+
+    def test_cover_stays_png_without_pillow(self):
+        from champollion.export.build import jpeg_cover
+        raw = b"\x89PNG\r\n\x1a\nsynthetic"
+        original = sys.modules.get("PIL", _MISSING)
+        sys.modules["PIL"] = None  # makes "from PIL import Image" raise ImportError
+        try:
+            self.assertEqual(jpeg_cover(raw), (raw, "png"))
+        finally:
+            if original is _MISSING:
+                sys.modules.pop("PIL", None)
+            else:
+                sys.modules["PIL"] = original
+
+
+_MISSING = object()
+
+
 class ModelCase(unittest.TestCase):
     def test_editions_present_and_missing(self):
         with tempfile.TemporaryDirectory() as tmp:

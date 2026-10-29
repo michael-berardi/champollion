@@ -23,7 +23,12 @@ def convert_font(path: str) -> Tuple[str, bytes]:
     try:
         from fontTools.ttLib import TTFont  # type: ignore
     except ImportError as exc:
-        raise ChampollionError(f"cannot embed {source.name}: install fonttools (and brotli for woff2)", cause="ENGINE-MISSING") from exc
+        raise ChampollionError(f"cannot embed {source.name}: install champollion-protocol[fonts] (fonttools and brotli)", cause="ENGINE-MISSING") from exc
+    if source.suffix.lower() == ".woff2":
+        try:
+            import brotli  # type: ignore  # noqa: F401
+        except ImportError as exc:
+            raise ChampollionError(f"cannot embed {source.name}: woff2 needs brotli; install champollion-protocol[fonts]", cause="ENGINE-MISSING") from exc
     # recalcTimestamp=False keeps the source head.modified; by default fontTools stamps the current
     # time on save, so the same font converted twice gives different bytes and the EPUB size check flaps.
     font = TTFont(str(source), recalcTimestamp=False)
@@ -37,15 +42,19 @@ def cover_image(book: Book, opts: Options, chrome: str):
     font_link = f'<link rel="stylesheet" href="{Path(opts.font_css).as_uri()}"/>' if opts.font_css else ""
     page = (f'<!doctype html><html><head><meta charset="utf-8"/>{font_link}<style>html,body{{margin:0;background:#000}}{COVER_CSS}</style></head>'
             f'<body>{cover_markup(book, opts)}</body></html>')
-    data = html_to_png(page, chrome, 576, 864, 2.5)
+    return jpeg_cover(html_to_png(page, chrome, 576, 864, 2.5))
+
+
+def jpeg_cover(data: bytes):
+    """Return (bytes, ext): a progressive JPEG when Pillow is installed, else the PNG unchanged."""
     try:  # JPEG is a third of the size and what readers expect; Pillow is optional
         from PIL import Image  # type: ignore
-        img = Image.open(io.BytesIO(data)).convert("RGB")
-        out = io.BytesIO()
-        img.save(out, "JPEG", quality=90, optimize=True, progressive=True)
-        return out.getvalue(), "jpg"
     except ImportError:
         return data, "png"
+    img = Image.open(io.BytesIO(data)).convert("RGB")
+    out = io.BytesIO()
+    img.save(out, "JPEG", quality=90, optimize=True, progressive=True)
+    return out.getvalue(), "jpg"
 
 
 def _timeout(html: str) -> int:

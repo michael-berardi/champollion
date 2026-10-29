@@ -14,9 +14,9 @@ Without `--edition` every edition present in the file is exported; without `--fo
 
 | Output | Needs |
 | --- | --- |
-| EPUB | nothing beyond Python 3.9+ (the cover is rendered by Chrome; `Pillow` makes it a JPEG when installed) |
+| EPUB | nothing beyond Python 3.9+ (the cover is rendered by Chrome; the `images` extra, `Pillow`, makes it a JPEG) |
 | PDF | Chrome or Chromium (`--chrome`, `$CHAMPOLLION_CHROME`, or a standard install path) and `pdftotext`/`pdfinfo` from poppler, which place the page numbers in the contents |
-| Egyptian fonts in EPUB | `fonttools` and `brotli`, to convert a `woff2` to a font EPUB readers accept |
+| Embedded woff2 fonts in EPUB | the `fonts` extra (`fonttools` and `brotli`), to convert a `woff2` to a font EPUB readers accept |
 
 A missing engine fails with a named error (`ENGINE-MISSING`); nothing is downloaded.
 
