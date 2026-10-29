@@ -6,6 +6,13 @@ Champollion enforces mechanical requirements and records judgement (VER-1). It d
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-10-29
+
+### Fixed
+
+- An embedded WOFF or WOFF2 font is converted without changing its `head` timestamp, so the same font gives the same EPUB bytes on every build. Before, fontTools stamped the current time on each save and the size check could flap between rebuilds.
+- Migration: no checker, profile, protocol or vendored-gate change. EPUBs with embedded WOFF/WOFF2 fonts will differ in bytes from 1.2.0 builds, but are otherwise unchanged; Mouseia's pinned manifest is not changed by this release.
+
 ## [1.2.0] - 2026-10-26
 
 ### Added

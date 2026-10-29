@@ -24,7 +24,9 @@ def convert_font(path: str) -> Tuple[str, bytes]:
         from fontTools.ttLib import TTFont  # type: ignore
     except ImportError as exc:
         raise ChampollionError(f"cannot embed {source.name}: install fonttools (and brotli for woff2)", cause="ENGINE-MISSING") from exc
-    font = TTFont(str(source))
+    # recalcTimestamp=False keeps the source head.modified; by default fontTools stamps the current
+    # time on save, so the same font converted twice gives different bytes and the EPUB size check flaps.
+    font = TTFont(str(source), recalcTimestamp=False)
     font.flavor = None
     buf = io.BytesIO()
     font.save(buf)

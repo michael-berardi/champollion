@@ -334,6 +334,41 @@ class EpubCase(unittest.TestCase):
                 build_epub(load_book(work, "original"), Options(), str(Path(tmp) / name))
             self.assertEqual((Path(tmp) / "a.epub").read_bytes(), (Path(tmp) / "b.epub").read_bytes())
 
+    def test_embedded_font_is_byte_stable_across_builds(self):
+        # fontTools stamps head.modified with the clock on every save; a font converted at another
+        # second must still produce identical bytes, and keep the source timestamp.
+        import time
+        from fontTools.fontBuilder import FontBuilder
+        from fontTools.pens.ttGlyphPen import TTGlyphPen
+        from fontTools.ttLib import TTFont
+        from champollion.export.build import convert_font
+        with tempfile.TemporaryDirectory() as tmp:
+            pen = TTGlyphPen(None)
+            pen.moveTo((0, 0)); pen.lineTo((0, 500)); pen.lineTo((500, 0)); pen.closePath()
+            glyph = pen.glyph()
+            fb = FontBuilder(1000, isTTF=True)
+            fb.setupGlyphOrder([".notdef", "A"])
+            fb.setupCharacterMap({65: "A"})
+            fb.setupGlyf({".notdef": glyph, "A": glyph})
+            fb.setupHorizontalMetrics({".notdef": (500, 0), "A": (500, 0)})
+            fb.setupHorizontalHeader(ascent=800, descent=-200)
+            fb.setupNameTable({"familyName": "Synthetic", "styleName": "Regular"})
+            fb.setupOS2(); fb.setupPost()
+            fb.setupHead(unitsPerEm=1000, created=3700000000, modified=3700000000)
+            ttf = str(Path(tmp) / "synthetic.ttf")
+            fb.save(ttf)
+            # convert_font only re-saves WOFF/WOFF2 (TTF/OTF pass through), so the input must be a WOFF.
+            woff = Path(tmp) / "synthetic.woff"
+            font = TTFont(ttf, recalcTimestamp=False)
+            font.flavor = "woff"
+            font.save(str(woff))
+            src = str(woff)
+            first = convert_font(src)[1]
+            time.sleep(1.1)
+            second = convert_font(src)[1]
+            self.assertEqual(first, second)
+            self.assertEqual(TTFont(io.BytesIO(first), recalcTimestamp=False)["head"].modified, 3700000000)
+
 
 class ModelCase(unittest.TestCase):
     def test_editions_present_and_missing(self):
