@@ -6,6 +6,13 @@ Champollion enforces mechanical requirements and records judgement (VER-1). It d
 
 ## [Unreleased]
 
+## [1.2.3] - 2026-10-30
+
+### Fixed
+
+- PDF creation and modification metadata dates are normalized to the Unix epoch, and contents leaders are solid rather than dotted, removing sources of build-to-build byte variation. Byte identity is not guaranteed across Chrome versions, platforms, fonts, or other build environments. Unsupported or malformed Chrome PDF metadata fails with `ENGINE-PDF-METADATA` rather than being rewritten by guesswork.
+- Migration: no checker, profile, protocol or vendored-gate change. PDF bytes and the appearance of contents leaders change; existing EPUB output is unaffected.
+
 ## [1.2.2] - 2026-10-29
 
 ### Added

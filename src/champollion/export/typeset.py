@@ -406,7 +406,8 @@ body{margin:0;color:var(--ink);font-family:var(--serif);line-height:1.5;font-ker
 .toc-rows li{display:flex;align-items:baseline;gap:.08in;margin:0 0 .052in;font-size:9.8pt;line-height:1.3;break-inside:avoid}
 .toc-rows .t{flex:0 1 auto}
 .toc-rows .k{font:600 7.2pt/1 "Helvetica Neue",Helvetica,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);white-space:nowrap}
-.toc-rows .dots{flex:1 1 .2in;border-bottom:.8pt dotted #b9ad94;transform:translateY(-.03in);min-width:.2in}
+/* A solid leader avoids Chrome's repeated dotted-border PDF paint operations. */
+.toc-rows .dots{flex:1 1 .2in;border-bottom:.8pt solid #b9ad94;transform:translateY(-.03in);min-width:.2in}
 .toc-rows .n{font-variant-numeric:oldstyle-nums;color:var(--soft);min-width:.3in;text-align:right}
 .toc-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:.08in .06in;list-style:none;margin:0;padding:0}
 .toc-grid li{display:block;text-align:center;border-top:.6pt solid var(--rule);padding-top:.06in;break-inside:avoid}

@@ -1,6 +1,7 @@
 """PDF through headless Chrome/Chromium (the only external engine; located explicitly, never downloaded)."""
 from __future__ import annotations
 
+import datetime
 import os
 import re
 import shutil
@@ -81,8 +82,122 @@ def _print(html_text: str, out_pdf: str, chrome: str, timeout: int) -> None:
               f"--print-to-pdf={tmp_pdf}", page.as_uri()], timeout, tmp_pdf)
         if not tmp_pdf.is_file() or tmp_pdf.stat().st_size < 1000:
             raise ChampollionError("chrome produced no PDF", cause="ENGINE-FAILED")
+        _normalize_chrome_dates(tmp_pdf)
         Path(out_pdf).parent.mkdir(parents=True, exist_ok=True)
         shutil.move(str(tmp_pdf), out_pdf)
+
+
+def _normalize_chrome_dates(pdf: Path) -> None:
+    """Replace Chrome's Info dates with the Unix epoch, preserving all byte offsets.
+
+    Only Chrome's classic, single-revision PDF and simple Info dictionary are
+    accepted. An unfamiliar representation is an error, not a guessed replacement.
+    """
+    data = pdf.read_bytes()
+
+    def bad() -> None:
+        raise ChampollionError(f"{pdf}: unsupported or malformed Chrome PDF metadata", cause="ENGINE-PDF-METADATA")
+
+    end = re.search(rb"startxref\s+(\d+)\s+%%EOF\s*$", data)
+    if not data.startswith(b"%PDF-") or not end:
+        raise ChampollionError(f"{pdf}: incomplete Chrome PDF", cause="ENGINE-FAILED")
+    xref_at = int(end.group(1))
+    if xref_at >= end.start() or not data.startswith(b"xref\n", xref_at):
+        raise ChampollionError(f"{pdf}: missing Chrome PDF xref", cause="ENGINE-FAILED")
+    trailer = re.compile(rb"trailer\s*<<(.*?)>>\s*startxref\s+\d+\s+%%EOF\s*$", re.S).search(data, xref_at)
+    if not trailer or re.search(rb"/(?:Prev|XRefStm)\b", trailer.group(1)):
+        bad()
+    info = re.findall(rb"/Info\s+(\d+)\s+(\d+)\s+R\b", trailer.group(1))
+    if len(info) != 1:
+        bad()
+    number, generation = map(int, info[0])
+    table = data[xref_at + 5:trailer.start()]
+    lines = table.splitlines()
+    entries = []
+    i = 0
+    while i < len(lines):
+        header = re.fullmatch(rb"(\d+)\s+(\d+)\s*", lines[i])
+        if not header:
+            bad()
+        first, count = map(int, header.groups())
+        i += 1
+        if count > len(lines) - i:
+            bad()
+        for n in range(first, first + count):
+            entry = re.fullmatch(rb"(\d{10})\s+(\d{5})\s+([nf])\s*", lines[i])
+            if not entry:
+                bad()
+            if n == number:
+                entries.append(entry.groups())
+            i += 1
+    if len(entries) != 1 or int(entries[0][1]) != generation or entries[0][2] != b"n":
+        bad()
+    obj_at = int(entries[0][0])
+    if obj_at >= xref_at:
+        bad()
+    obj = re.compile(rb"%d\s+%d\s+obj\s*<<((?:(?!\bendobj\b).)*?)>>\s*endobj\b"
+                     % (number, generation), re.S).match(data, obj_at, xref_at)
+    if not obj:
+        bad()
+    dictionary = obj.group(1)
+    base = obj.start(1)
+    # Scan strings so a title containing '/CreationDate' is not treated as a key.
+    pos = 0
+    dates = {}
+    while pos < len(dictionary):
+        ws = re.match(rb"\s*", dictionary[pos:])
+        pos += ws.end()
+        if pos == len(dictionary):
+            break
+        key = re.match(rb"/([A-Za-z]+)\s*", dictionary[pos:])
+        if not key:
+            bad()
+        name = key.group(1)
+        pos += key.end()
+        start = pos
+        if pos < len(dictionary) and dictionary[pos] == 40:
+            pos += 1
+            depth = 1
+            while pos < len(dictionary) and depth:
+                char = dictionary[pos]
+                if char == 92:
+                    pos += 2
+                    continue
+                depth += (char == 40) - (char == 41)
+                pos += 1
+            if depth:
+                bad()
+        elif pos < len(dictionary) and dictionary[pos] == 60:
+            close = dictionary.find(b">", pos + 1)
+            if close < 0 or not re.fullmatch(rb"[0-9A-Fa-f\s]*", dictionary[pos + 1:close]):
+                bad()
+            pos = close + 1
+        else:
+            bad()
+        if name in (b"CreationDate", b"ModDate"):
+            if name in dates:
+                bad()
+            dates[name] = (start, pos)
+    if len(dates) != 2:
+        bad()
+    result = bytearray(data)
+    for start, stop in dates.values():
+        value = dictionary[start:stop]
+        match = re.fullmatch(rb"\(D:(\d{14})(Z|[+-]\d{2}'\d{2}')?\)", value)
+        if not match:
+            bad()
+        try:
+            datetime.datetime.strptime(match.group(1).decode("ascii"), "%Y%m%d%H%M%S")
+        except ValueError:
+            bad()
+        zone = match.group(2) or b""
+        if len(zone) > 1 and (int(zone[1:3]) > 23 or int(zone[4:6]) > 59):
+            bad()
+        replacement = b"(D:19700101000000" + (b"+00'00'" if len(zone) > 1 else zone) + b")"
+        if len(replacement) != stop - start:
+            bad()
+        result[base + start:base + stop] = replacement
+    pdf.write_bytes(result)
 
 
 def html_to_png(html_text: str, chrome: str, width: int, height: int, scale: float = 2.5, timeout: int = 120,

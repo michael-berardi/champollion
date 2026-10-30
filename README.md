@@ -36,7 +36,7 @@ Use a new directory for the install and example below. On macOS or Linux:
 ```sh
 python3 -m venv .venv
 . .venv/bin/activate
-python3 -m pip install "champollion-protocol @ git+https://github.com/michael-berardi/champollion.git@v1.2.2"
+python3 -m pip install "champollion-protocol @ git+https://github.com/michael-berardi/champollion.git@v1.2.3"
 ```
 
 On Windows, create the environment with `py -3 -m venv .venv`, activate it with `.\.venv\Scripts\Activate.ps1`, then run the same install command using `python -m pip`.
@@ -48,7 +48,7 @@ Tagged releases also include a wheel, a source archive, and `SHA256SUMS` on the 
 After installing, download the example and run its checks:
 
 ```sh
-git clone --branch v1.2.2 --depth 1 https://github.com/michael-berardi/champollion.git
+git clone --branch v1.2.3 --depth 1 https://github.com/michael-berardi/champollion.git
 champollion check --root champollion/examples/latin-to-spanish
 champollion report --root champollion/examples/latin-to-spanish --json
 ```
