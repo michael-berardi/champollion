@@ -46,6 +46,22 @@ DOUBLED_OK = {'cao', 'yan', 'had', 'that', 'very', 'far', 'so', 'on', 'o', 'ah',
               'all', 'on', 'up', 'down', 'back', 'high', 'now', 'here', 'there', 'soon', 'blessed', 'holy', 'kill',
               'strike', 'burn', 'hear', 'listen', 'look', 'see', 'alas', 'oh', 'ha', 'hush', 'quick', 'on'}
 ELLIPSIS = re.compile(r'(?<!\.)\.\.(?!\.)|\(\.\.\)')
+# House markup the reader renders: **strong** (Kant's spaced type), footnote calls and
+# definitions ([^key] / [^key]: text) and pipe tables. Only these spans are exempt from
+# the raw-markup check; an unbalanced **, a stray pipe or a bare ^ is still debris.
+STRONG = re.compile(r'\*\*[^*\n]+\*\*')
+FOOTNOTE_TOKEN = re.compile(r'\[\^[A-Za-z0-9_-]+\]')
+TABLE_LINE = re.compile(r'^\s*\|')
+
+
+def rendered(line):
+    """Return the line with supported house markup removed, for the debris check."""
+    text = FOOTNOTE_TOKEN.sub('', STRONG.sub('', line))
+    if TABLE_LINE.match(text):
+        return '\x00'.join(re.split(r'(?<!\\)\|', text.strip().strip('|')))
+    return text
+
+
 COPY_RATIO = 0.35
 # Works whose editions mark speech with straight double quotes line by line; the
 # structural speech-mark check runs on these (2026-09-24 audit: unclosed speeches).
@@ -114,9 +130,10 @@ def lint(path, baseline, names=None):
                 where = f'line {ln}'
                 if OCR_MARKER.search(line):
                     report('ocr-marker', u['head'], f'{label} {where}: raw [OCR unclear] marker')
-                d = DEBRIS.search(line)
+                checked = rendered(line)
+                d = DEBRIS.search(checked)
                 if d:
-                    report('debris', u['head'], f'{label} {where}: {d.group(0)!r} in “…{line[max(0, d.start() - 30):d.end() + 30]}…”')
+                    report('debris', u['head'], f'{label} {where}: {d.group(0)!r} in “…{checked[max(0, d.start() - 30):d.end() + 30]}…”')
                 for m in DOUBLED.finditer(line):
                     if m.group(1).lower() not in DOUBLED_OK:
                         report('doubled-word', u['head'], f'{label} {where}: “{m.group(0)}”')

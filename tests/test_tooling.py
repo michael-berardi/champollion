@@ -366,6 +366,37 @@ class SourceVendorTests(CliCase):
 
 
 class LegacyCompatibilityTests(CliCase):
+    def test_mouseia_rendered_markup_is_not_debris(self):
+        from champollion.compat import mouseia
+        work = self.root / 'markup.md'
+        markup = ('A **strong phrase** and a note[^note-1].\n'
+                  '[^note-1]: A footnote definition.\n'
+                  '| Heading | Value |\n'
+                  '| --- | --- |\n'
+                  '| One | **Emphasis** and a note[^note-1] |')
+        for section in ('Mouseia Translation', 'Plain Translation'):
+            with self.subTest(section=section):
+                work.write_text(f'---\ntitle: Markup\n---\n## Original\n### One\nSource.\n'
+                                f'## {section}\n### One\n{markup}\n', encoding='utf8')
+                self.assertEqual(mouseia.lint(str(work), {}, {}), ([], []))
+
+    def test_mouseia_malformed_markup_and_real_debris_are_reported(self):
+        from champollion.compat import mouseia
+        work = self.root / 'markup.md'
+        cases = ('An **unclosed phrase.', 'An unmatched __ marker.',
+                 'A malformed note[^].', 'A bare ^ marker.',
+                 'A stray | pipe.', 'An &amp; entity.', 'A {scan} artifact.',
+                 '| One | A {scan} artifact |')
+        for section in ('Mouseia Translation', 'Plain Translation'):
+            for text in cases:
+                with self.subTest(section=section, text=text):
+                    work.write_text(f'---\ntitle: Markup\n---\n## Original\n### One\nSource.\n'
+                                    f'## {section}\n### One\n{text}\n', encoding='utf8')
+                    errors, warnings = mouseia.lint(str(work), {}, {})
+                    self.assertEqual(len(errors), 1, errors)
+                    self.assertIn('[One] debris:', errors[0])
+                    self.assertEqual(warnings, [])
+
     def test_mouseia_legacy_pass_fail_baseline_counts_not_conformance(self):
         from champollion.compat import mouseia
         corpus = self.root / 'corpus'; corpus.mkdir()

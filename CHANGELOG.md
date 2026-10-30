@@ -6,6 +6,13 @@ Champollion enforces mechanical requirements and records judgement (VER-1). It d
 
 ## [Unreleased]
 
+## [1.2.5] - 2026-10-30
+
+### Fixed
+
+- The Mouseia legacy compatibility lint matches the existing frozen Mouseia gate for paired `**strong**`, footnote tokens and pipe-prefixed lines. This legacy rule does not detect debris inside strong spans or validate table syntax; other lint checks still inspect the text.
+- Migration: re-vendor the new release and verify the snapshot and focused fixtures before adopting it. Existing debris baselines for supported markup can be reviewed and removed when no longer needed; other checks, profiles and the protocol are unchanged. The strict checker is separate from the legacy compatibility lane.
+
 ## [1.2.4] - 2026-10-30
 
 ### Fixed
