@@ -22,8 +22,14 @@ A missing engine fails with a named error (`ENGINE-MISSING`); nothing is downloa
 
 ## What it makes
 
-- **PDF**: 6 × 9 in, equal left and right margins, a cover, title page, an "About this edition" page (note, translator, source, gaps and uncertainties from the work's front matter), contents, then the text, whose page numbers start at 1 on its first page (the contents uses the same numbers). Verse keeps its lines with hanging indents; reference numbers (verse, section, Stephanus, papyrus line) sit in a left gutter; English gets curly quotes, true dashes for `--`, and a spaced dash never starts a line. The document information (title, author, subject with the translator, keywords) is filled in. Fonts come from `--font-css`, a stylesheet of `@font-face` rules with absolute `file:` URLs, or from the system.
+- **PDF**: 6 × 9 in, equal left and right margins, a cover, title page, an "About this edition" page (note, translator, source, gaps and uncertainties from the work's front matter), contents with solid leaders, then the text, whose page numbers start at 1 on its first page (the contents uses the same numbers). Verse keeps its lines with hanging indents; reference numbers (verse, section, Stephanus, papyrus line) sit in a left gutter; English gets curly quotes, true dashes for `--`, and a spaced dash never starts a line. The document information (title, author, subject with the translator, keywords) is filled in. Fonts come from `--font-css`, a stylesheet of `@font-face` rules with absolute `file:` URLs, or from the system.
 - **EPUB 3**: reflowable, no forced fonts (the reader's font and size apply), a contents navigation file plus an NCX for older Kindle software, a cover, full metadata (title, author, translator as `trl`, language, publisher, date), and byte-identical output for the same input. Kindle accepts EPUB through *Send to Kindle* and the Kindle app.
+
+## PDF reproducibility
+
+Chrome's PDF creation and modification dates are normalized to the Unix epoch (1970-01-01 00:00:00 UTC), rather than the build time. Contents leaders are solid rather than dotted to avoid Chrome's repeated dotted-border paint operations. These changes remove sources of byte variation; byte-identical PDFs are not guaranteed across Chrome versions, platforms, fonts, or other build environments. Keep the inputs, options, engine, fonts, and environment fixed when comparing builds.
+
+The date normalizer accepts Chrome's supported classic, single-revision PDF metadata representation. Unsupported or malformed metadata fails with `ENGINE-PDF-METADATA` rather than producing a PDF with guessed dates; incomplete PDFs or missing cross-reference tables fail with `ENGINE-FAILED`.
 
 ## Layout decisions the exporter makes
 

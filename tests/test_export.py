@@ -10,6 +10,7 @@ import unittest
 from unittest import mock
 import zipfile
 from pathlib import Path
+from unittest.mock import patch
 from xml.dom import minidom
 
 sys.dont_write_bytecode = True
@@ -21,7 +22,7 @@ from champollion.export.model import available_editions, load_book
 from champollion.export.pdf import find_chrome
 from champollion.export.refs import parse_body
 from champollion.export.typeset import (Options, Theme, dek_ok, human_date, is_flow, is_poem_title, is_prose, prepare, print_html,
-                                        convert_mdc, render_blocks, smarten, split_label, tidy_title, unit_titles)
+                                        _toc_markup, convert_mdc, render_blocks, smarten, split_label, tidy_title, unit_titles)
 from champollion.findings import ChampollionError
 
 WORK = """---
@@ -175,6 +176,34 @@ class TypesetCase(unittest.TestCase):
             html = print_html(book, Options(unit_noun="Chapter"))
             self.assertIn('class="front toc"', html)
             self.assertIn("Contents", html)
+
+    def test_toc_solid_leaders_preserve_flex_layout_and_folios(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            book = load_book(write(tmp, "chaptered.md", CHAPTERS), "musean")
+            placeholder = print_html(book, Options())
+            numbered = print_html(book, Options(toc_pages={0: 6, 1: 12}, folio_offset=4))
+            self.assertIn('.toc-rows .dots{flex:1 1 .2in;border-bottom:.8pt solid #b9ad94;'
+                          'transform:translateY(-.03in);min-width:.2in}', numbered)
+            self.assertIn('.toc-rows.dense .dots{min-width:.08in;flex-basis:.08in}', numbered)
+            self.assertNotRegex(numbered, r'border[^;{}]*\bdotted\b')
+            for i, folio in enumerate((2, 8)):
+                self.assertIn(f'<span class="dots"></span><a class="n" href="#u{i}">{folio}</a>', numbered)
+                self.assertIn(f'<span class="dots"></span><a class="n" href="#u{i}">000</a>', placeholder)
+
+    def test_toc_dense_rows_and_grid_keep_their_distinct_markup(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            book = load_book(write(tmp, "chaptered.md", CHAPTERS), "musean")
+            titles = [(f"Chapter {i}", f"A long title & {i}") for i in range(51)]
+            rows = _toc_markup(book, Options(toc_pages={0: 7}, folio_offset=4), titles)
+            self.assertIn('<ol class="toc-rows two dense">', rows)
+            self.assertEqual(rows.count('<span class="dots"></span>'), 51)
+            self.assertIn('A long title &amp;\u00a00', rows)
+            self.assertIn('<a class="n" href="#u0">3</a>', rows)
+            self.assertIn('<a class="n" href="#u1"></a>', rows)
+            grid = _toc_markup(book, Options(), [(f"Chapter {i}", "") for i in range(51)])
+            self.assertIn('<ol class="toc-grid">', grid)
+            self.assertNotIn('class="dots"', grid)
+            self.assertIn('<span class="g">0</span><span class="n">000</span>', grid)
 
 
 RUN_ON = """---
@@ -574,6 +603,152 @@ def _chrome():
         return find_chrome()
     except ChampollionError:
         return None
+
+
+def _synthetic_chrome_pdf(dates=None):
+    if dates is None:
+        dates = b"/CreationDate (D:20261014123456+05'30')\n/ModDate (D:20261014123457+05'30')"
+    data = b"%PDF-1.4\n1 0 obj\n<< /Length 1024 >>\nstream\n" + b"x" * 1024 + b"\nendstream\nendobj\n"
+    info_at = len(data)
+    data += b"2 0 obj\n<</Title (nested (title) /CreationDate fake) /Producer <4142>\n" + dates + b"\n>>\nendobj\n"
+    xref_at = len(data)
+    return data + (b"xref\n0 3\n0000000000 65535 f \n0000000009 00000 n \n%010d 00000 n \n"
+                   b"trailer\n<</Size 3 /Root 1 0 R /Info 2 0 R>>\nstartxref\n%d\n%%%%EOF\n" % (info_at, xref_at))
+
+
+class PdfMetadataCase(unittest.TestCase):
+    def test_dates_are_stable_and_offsets_and_other_bytes_are_preserved(self):
+        from champollion.export import pdf as pdfmod
+        a = _synthetic_chrome_pdf()
+        b = _synthetic_chrome_pdf(b"/CreationDate (D:20271230101010-08'00')\n/ModDate (D:20271230101011-08'00')")
+        with tempfile.TemporaryDirectory() as tmp:
+            paths = [Path(tmp) / name for name in ("a.pdf", "b.pdf")]
+            for path, data in zip(paths, (a, b)):
+                path.write_bytes(data)
+                pdfmod._normalize_chrome_dates(path)
+            normalized = paths[0].read_bytes()
+            self.assertEqual(normalized, paths[1].read_bytes())
+            self.assertEqual(len(normalized), len(a))
+            self.assertEqual(normalized.count(b"D:19700101000000+00'00'"), 2)
+            self.assertEqual(normalized, a.replace(b"D:20261014123456+05'30'", b"D:19700101000000+00'00'")
+                                      .replace(b"D:20261014123457+05'30'", b"D:19700101000000+00'00'"))
+            pdfmod._normalize_chrome_dates(paths[0])
+            self.assertEqual(paths[0].read_bytes(), normalized)
+            for path in paths:
+                pdfmod.set_info(str(path), {"Title": "Test"})
+            self.assertEqual(paths[0].read_bytes(), paths[1].read_bytes())
+
+    def test_malformed_metadata_is_named_and_never_partially_written(self):
+        from champollion.export import pdf as pdfmod
+        valid = _synthetic_chrome_pdf()
+        cases = [
+            _synthetic_chrome_pdf(b"/CreationDate (D:20260230123456Z) /ModDate (D:20260101123456Z)"),
+            _synthetic_chrome_pdf(b"/CreationDate (D:20260101123456+25'00') /ModDate (D:20260101123456Z)"),
+            _synthetic_chrome_pdf(b"/CreationDate (D:20260101123456Z)"),
+            _synthetic_chrome_pdf(b"/CreationDate (D:20260101123456Z) /CreationDate (D:20260101123456Z) /ModDate (D:20260101123456Z)"),
+            _synthetic_chrome_pdf(b"/CreationDate <44415445> /ModDate (D:20260101123456Z)"),
+            valid.replace(b"/Info 2 0 R", b"/Info 1 0 R"),
+            valid.replace(b"/Root 1 0 R", b"/Prev 0 /Root 1 0 R"),
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "bad.pdf"
+            for data in cases:
+                with self.subTest(data=data[-200:]):
+                    path.write_bytes(data)
+                    with self.assertRaises(ChampollionError) as ctx:
+                        pdfmod._normalize_chrome_dates(path)
+                    self.assertEqual(ctx.exception.cause, "ENGINE-PDF-METADATA")
+                    self.assertEqual(path.read_bytes(), data)
+
+    def test_string_encodings_and_date_zone_variants(self):
+        from champollion.export import pdf as pdfmod
+        titles = (br"(escaped \(parentheses\) and \\ backslash \050octal\051 /CreationDate)",
+                  b"<FEFF005400690074006C0065>")
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "book.pdf"
+            for title in titles:
+                for zone in (b"Z", b""):
+                    with self.subTest(title=title, zone=zone):
+                        dates = (b"/CreationDate (D:20260101123456" + zone + b") "
+                                 b"/ModDate (D:20260202123456" + zone + b")")
+                        original = _synthetic_chrome_pdf(dates).replace(
+                            b"(nested (title) /CreationDate fake)", title)
+                        # Rebuild the xref offset after changing the title's length.
+                        xref = original.index(b"xref\n")
+                        original = re.sub(rb"startxref\n\d+", b"startxref\n" + str(xref).encode(), original)
+                        path.write_bytes(original)
+                        pdfmod._normalize_chrome_dates(path)
+                        expected = original.replace(b"D:20260101123456", b"D:19700101000000").replace(
+                            b"D:20260202123456", b"D:19700101000000")
+                        self.assertEqual(path.read_bytes(), expected)
+
+    def test_info_dictionary_cannot_cross_endobj(self):
+        from champollion.export import pdf as pdfmod
+        data = _synthetic_chrome_pdf().replace(
+            b"\n>>\nendobj\nxref\n", b"\nendobj\n3 0 obj\n<< /Foo (bar)\n>>\nendobj\nxref\n")
+        data = re.sub(rb"startxref\n\d+", b"startxref\n" + str(data.index(b"xref\n")).encode(), data)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "bad.pdf"
+            path.write_bytes(data)
+            with self.assertRaises(ChampollionError) as ctx:
+                pdfmod._normalize_chrome_dates(path)
+            self.assertEqual(ctx.exception.cause, "ENGINE-PDF-METADATA")
+            self.assertEqual(path.read_bytes(), data)
+
+    def test_incomplete_pdf_is_retried_and_preserves_existing_output(self):
+        from champollion.export import pdf as pdfmod
+        valid = _synthetic_chrome_pdf()
+        incomplete = (valid[:valid.index(b"startxref")], valid.replace(b"xref\n0 3", b"xxxx\n0 3", 1))
+        for data in incomplete:
+            with self.subTest(tail=data[-50:]), tempfile.TemporaryDirectory() as tmp:
+                out = Path(tmp) / "out.pdf"
+                out.write_bytes(b"existing")
+                calls = []
+                def run(args, timeout, output):
+                    calls.append(1)
+                    self.assertEqual(out.read_bytes(), b"existing")
+                    output.write_bytes(data if len(calls) == 1 else valid)
+                with patch.object(pdfmod, "_run", side_effect=run):
+                    pdfmod.html_to_pdf("<p/>", str(out), "chrome")
+                self.assertEqual(len(calls), 2)
+                self.assertIn(b"D:19700101000000+00'00'", out.read_bytes())
+                calls.clear()
+                def always_incomplete(args, timeout, output):
+                    calls.append(1)
+                    output.write_bytes(data)
+                out.write_bytes(b"existing")
+                with patch.object(pdfmod, "_run", side_effect=always_incomplete):
+                    with self.assertRaises(ChampollionError) as ctx:
+                        pdfmod.html_to_pdf("<p/>", str(out), "chrome")
+                self.assertEqual(ctx.exception.cause, "ENGINE-FAILED")
+                self.assertEqual(len(calls), 2)
+                self.assertEqual(out.read_bytes(), b"existing")
+
+    def test_export_retries_engine_failure_but_not_bad_metadata(self):
+        from champollion.export import pdf as pdfmod
+        calls = []
+        def run(args, timeout, output):
+            calls.append(1)
+            if len(calls) == 1:
+                raise ChampollionError("failed", cause="ENGINE-FAILED")
+            output.write_bytes(_synthetic_chrome_pdf())
+        with tempfile.TemporaryDirectory() as tmp, patch.object(pdfmod, "_run", side_effect=run):
+            out = Path(tmp) / "out.pdf"
+            pdfmod.html_to_pdf("<p/>", str(out), "chrome")
+            self.assertEqual(len(calls), 2)
+            self.assertIn(b"D:19700101000000+00'00'", out.read_bytes())
+        calls.clear()
+        def malformed(args, timeout, output):
+            calls.append(1)
+            output.write_bytes(_synthetic_chrome_pdf(b"/CreationDate (bad) /ModDate (bad)"))
+        with tempfile.TemporaryDirectory() as tmp, patch.object(pdfmod, "_run", side_effect=malformed):
+            out = Path(tmp) / "out.pdf"
+            out.write_bytes(b"existing")
+            with self.assertRaises(ChampollionError) as ctx:
+                pdfmod.html_to_pdf("<p/>", str(out), "chrome")
+            self.assertEqual(ctx.exception.cause, "ENGINE-PDF-METADATA")
+            self.assertEqual(len(calls), 1)
+            self.assertEqual(out.read_bytes(), b"existing")
 
 
 class EngineRetryCase(unittest.TestCase):

@@ -14,7 +14,7 @@ import tarfile
 
 ROOT = Path(__file__).resolve().parents[1]
 EPOCH = 1791849600  # 2026-10-13 UTC, fixed release epoch.
-VERSION = '1.2.2'
+VERSION = '1.2.3'
 
 
 def main():
