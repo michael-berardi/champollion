@@ -127,7 +127,7 @@ class PortablePolicyTests(ProjectCase):
         work.write_text('---\n' + '\n'.join(f'{key}: {json.dumps(value)}' for key,value in fields.items()) + '\n---\n' + body, encoding='utf-8')
         report = build_report([work], profile, str(project), TODAY)
         self.assertEqual(report['counts']['errors'], 0)
-        self.assertEqual(report['checker_version'], '1.2.5')
+        self.assertEqual(report['checker_version'], '1.2.6')
         self.assertEqual(report['protocol_version'], '1.0.0')
         self.assertEqual(report['publication_gate']['status'], 'blocked')
 

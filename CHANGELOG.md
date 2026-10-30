@@ -6,7 +6,7 @@ Champollion enforces mechanical requirements and records judgement (VER-1). It d
 
 ## [Unreleased]
 
-## [1.2.5] - 2026-10-30
+## [1.2.6] - 2026-10-30
 
 ### Fixed
 

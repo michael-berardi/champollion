@@ -47,7 +47,7 @@ Use the corresponding profile path when changing a different profile. Keep schem
 Update in a development checkout with the selected tagged release available locally. Keep the previous snapshot and reports so rollback is possible. The pinned update and integrity check are:
 
 ```sh
-champollion vendor --into vendor --tag v1.2.5
+champollion vendor --into vendor --tag v1.2.6
 champollion verify-vendor vendor/champollion
 ```
 

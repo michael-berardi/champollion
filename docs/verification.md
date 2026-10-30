@@ -79,7 +79,7 @@ Matching is literal and case-sensitive, not semantic similarity (Mouseia: `scrip
 **Mechanical screening.** `checks.debris: true` selects the configured debris, OCR-marker, and doubled-word checks. `checks.ellipsis` selects ellipsis severity. Mouseia scans Musean and Plain lines, skipping lines whose left-trimmed text starts with an HTML comment (Mouseia: `scripts/lint_corpus.py`). Its exact predicates are:
 
 - `VER-OCR-MARKER`: a case-insensitive match for `[OCR unclear`.
-- `VER-DEBRIS`: any caret, vertical bar, guillemet, brace, tilde, or backslash; `**` or `__`; or an entity of the form `&lt;`, `&gt;`, `&amp;`, `&nbsp;`, `&quot;`, or `&#` followed by decimal digits and `;`.
+- `VER-DEBRIS`: after removing paired strong spans and footnote tokens, and treating pipe-prefixed lines as tables, flags a caret, vertical bar, guillemet, brace, tilde, or backslash; `**` or `__`; or an entity of the form `&lt;`, `&gt;`, `&amp;`, `&nbsp;`, `&quot;`, or `&#` followed by decimal digits and `;`. This legacy screen does not check debris inside removed strong spans or validate table syntax; the strict checker applies its configured pattern to the raw line.
 - `VER-DOUBLED-WORD`: the case-sensitive pattern `\b([A-Za-z][a-z]+)\s+\1\b`, unless the captured word, lowercased, belongs to the reviewed allow-list.
 - `VER-ELLIPSIS`: the strict checker flags two or more adjacent periods and requires `…`. The Mouseia compatibility lane preserves its original two-period predicate and warning severity; it deliberately does not add a new failure to an established build.
 
