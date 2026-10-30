@@ -6,6 +6,13 @@ Champollion enforces mechanical requirements and records judgement (VER-1). It d
 
 ## [Unreleased]
 
+## [1.2.4] - 2026-10-30
+
+### Fixed
+
+- WOFF2 conversion accepts whichever Brotli backend the installed fontTools supports, and the fonts extra requires fontTools 4.0.1 or newer to avoid an obsolete Python array API. Invalid fonts report an engine failure; CFF2 fonts use the correct OTF extension.
+- Migration: no checker, profile or protocol change. Builds using the supported fontTools Brotli backend can embed WOFF2 fonts; malformed font errors are now reported as `ENGINE-FAILED`.
+
 ## [1.2.3] - 2026-10-30
 
 ### Fixed
