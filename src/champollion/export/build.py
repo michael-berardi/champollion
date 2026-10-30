@@ -25,17 +25,21 @@ def convert_font(path: str) -> Tuple[str, bytes]:
     except ImportError as exc:
         raise ChampollionError(f"cannot embed {source.name}: install champollion-protocol[fonts] (fonttools and brotli)", cause="ENGINE-MISSING") from exc
     if source.suffix.lower() == ".woff2":
-        try:
-            import brotli  # type: ignore  # noqa: F401
-        except ImportError as exc:
-            raise ChampollionError(f"cannot embed {source.name}: woff2 needs brotli; install champollion-protocol[fonts]", cause="ENGINE-MISSING") from exc
+        from fontTools.ttLib.woff2 import haveBrotli  # type: ignore
+        if not haveBrotli:
+            raise ChampollionError(f"cannot embed {source.name}: woff2 needs a fonttools-compatible Brotli backend; install champollion-protocol[fonts]", cause="ENGINE-MISSING")
     # recalcTimestamp=False keeps the source head.modified; by default fontTools stamps the current
     # time on save, so the same font converted twice gives different bytes and the EPUB size check flaps.
-    font = TTFont(str(source), recalcTimestamp=False)
-    font.flavor = None
-    buf = io.BytesIO()
-    font.save(buf)
-    return source.stem + (".otf" if "CFF " in font else ".ttf"), buf.getvalue()
+    try:
+        font = TTFont(str(source), recalcTimestamp=False)
+        font.flavor = None
+        buf = io.BytesIO()
+        font.save(buf)
+        return source.stem + (".otf" if "CFF " in font or "CFF2" in font else ".ttf"), buf.getvalue()
+    except OSError:
+        raise
+    except Exception as exc:
+        raise ChampollionError(f"cannot embed {source.name}: {exc}", cause="ENGINE-FAILED") from exc
 
 
 def cover_image(book: Book, opts: Options, chrome: str):

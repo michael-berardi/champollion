@@ -7,6 +7,7 @@ import re
 import sys
 import tempfile
 import unittest
+from unittest import mock
 import zipfile
 from pathlib import Path
 from xml.dom import minidom
@@ -394,10 +395,70 @@ class EpubCase(unittest.TestCase):
                 outputs.append((Path(tmp) / name).read_bytes())
             self.assertEqual(outputs[0], outputs[1])
 
+def _woff2_available():
+    try:
+        from fontTools.ttLib.woff2 import haveBrotli
+        return haveBrotli
+    except ImportError:
+        return False
+
+
 class OptionalEngineTests(unittest.TestCase):
-    # Hermetic: each test skips when its optional engine is absent, so the suite never depends on this machine.
-    @unittest.skipUnless(importlib.util.find_spec("fontTools") and importlib.util.find_spec("brotli"),
-                         "fonttools and brotli not installed (needed for woff2 fonts)")
+    def test_woff2_uses_fonttools_backend_capability(self):
+        # Exercise the dependency gate independently of installed optional engines.
+        import builtins
+        import types
+        from champollion.export.build import convert_font
+
+        real_import = builtins.__import__
+        for available in (True, False):
+            def fake_import(name, *args, **kwargs):
+                if name == "fontTools.ttLib":
+                    font = mock.Mock()
+                    font.__contains__ = mock.Mock(return_value=False)
+                    return types.SimpleNamespace(TTFont=lambda *a, **kw: font)
+                if name == "fontTools.ttLib.woff2":
+                    return types.SimpleNamespace(haveBrotli=available)
+                return real_import(name, *args, **kwargs)
+
+            with self.subTest(backend=available), mock.patch("builtins.__import__", side_effect=fake_import):
+                if not available:
+                    with self.assertRaises(ChampollionError) as caught:
+                        convert_font("synthetic.woff2")
+                    self.assertEqual(caught.exception.cause, "ENGINE-MISSING")
+                else:
+                    self.assertEqual(convert_font("synthetic.woff2")[0], "synthetic.ttf")
+
+    @unittest.skipUnless(importlib.util.find_spec("fontTools"), "fonttools not installed")
+    def test_cff2_converts_to_otf_name(self):
+        from champollion.export.build import convert_font
+        font = mock.MagicMock()
+        font.__contains__.side_effect = lambda name: name == "CFF2"
+        with mock.patch("fontTools.ttLib.TTFont", return_value=font):
+            self.assertEqual(convert_font("synthetic.woff")[0], "synthetic.otf")
+
+    @unittest.skipUnless(importlib.util.find_spec("fontTools"), "fonttools not installed")
+    def test_decode_failure_reports_engine_failure(self):
+        from champollion.export.build import convert_font
+        with mock.patch("fontTools.ttLib.TTFont", side_effect=RuntimeError("bad compressed stream")):
+            with self.assertRaises(ChampollionError) as caught:
+                convert_font("broken.woff")
+            self.assertEqual(caught.exception.cause, "ENGINE-FAILED")
+            self.assertIn("bad compressed stream", str(caught.exception))
+
+    @unittest.skipUnless(importlib.util.find_spec("fontTools"), "fonttools not installed")
+    def test_bad_font_reports_engine_failure(self):
+        from champollion.export.build import convert_font
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "broken.woff"
+            path.write_bytes(b"not a font")
+            with self.assertRaises(ChampollionError) as caught:
+                convert_font(str(path))
+            self.assertEqual(caught.exception.cause, "ENGINE-FAILED")
+            self.assertIn("broken.woff", str(caught.exception))
+
+    # Engine-dependent tests skip when an optional engine is absent.
+    @unittest.skipUnless(_woff2_available(), "fonttools WOFF2 backend not installed")
     def test_woff2_font_converts_with_fonttools_and_brotli(self):
         from fontTools.fontBuilder import FontBuilder
         from fontTools.pens.ttGlyphPen import TTGlyphPen

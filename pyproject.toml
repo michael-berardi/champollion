@@ -21,7 +21,7 @@ classifiers = [
 
 [project.optional-dependencies]
 # Embedded woff2 fonts: fontTools re-saves the font, brotli decodes woff2.
-fonts = ["fonttools>=4.0", "brotli>=1.0"]
+fonts = ["fonttools>=4.0.1", "brotli>=1.0"]
 # EPUB cover as JPEG instead of PNG.
 images = ["Pillow>=10.0"]
 
