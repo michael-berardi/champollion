@@ -34,7 +34,7 @@ Translate difficult readable passages and record uncertainty. Repair damage from
 
 ## How do I cite Champollion?
 
-Cite Michael Berardi, *Champollion protocol*, version 1.0.0, the repository URL, and the tag or commit used. [CITATION.cff](../CITATION.cff) provides citation metadata. Cite your source edition and actual translators separately. The specification is CC BY 4.0; citation metadata is not release approval or a translation-quality claim.
+Cite *Champollion protocol*, version 1.0.0, the repository URL, and the tag or commit used. [CITATION.cff](../CITATION.cff) provides citation metadata. Cite your source edition and actual translators separately. The specification is CC BY 4.0; citation metadata is not release approval or a translation-quality claim.
 
 ## Can I use it for modern texts and non-ancient languages?
 
@@ -46,4 +46,4 @@ There is no Champollion license fee, hosted-service subscription, or required tr
 
 ## Who maintains it?
 
-Michael Berardi maintains the protocol. Report reproducible defects in the [repository issue tracker](https://github.com/michael-berardi/champollion/issues); include the work, unit, code, text, and profile so a false positive can become a fixture. There is no guaranteed response time. Projects maintain their corpus, profiles, pinned snapshots, and judgment records; see [CONTRIBUTING.md](../CONTRIBUTING.md).
+The protocol is maintained by its contributors. Report reproducible defects in the [repository issue tracker](https://github.com/your-github-username/champollion/issues); include the work, unit, code, text, and profile so a false positive can become a fixture. There is no guaranteed response time. Projects maintain their corpus, profiles, pinned snapshots, and judgment records; see [CONTRIBUTING.md](../CONTRIBUTING.md).

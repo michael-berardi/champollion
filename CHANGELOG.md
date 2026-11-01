@@ -6,6 +6,14 @@ Champollion enforces mechanical requirements and records judgement (VER-1). It d
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-11-01
+
+### Changed
+
+- Neutralized shipped metadata and documentation: install commands, repository URLs, issue-tracker links, citation metadata and maintainer text no longer name a personal GitHub account. Neutral placeholders (`your-github-username`) and neutral maintainer text replace the previous handle. Legal attribution remains in `LICENSE`, `LICENSE-docs` and the package-metadata `authors` field.
+- Added `tests/test_neutrality.py`, which scans shipped files for concrete model ids, ordered fallback chains and personal names. It excludes legal attribution and synthetic test fixtures, and it fails on the pre-change tree. Mouseia remains named as an external legacy-corpus and format identity.
+- Migration: no checker, profile or protocol change. Projects that copied the previous install command should use the neutral placeholder or their own fork URL.
+
 ## [1.2.6] - 2026-10-30
 
 ### Fixed

@@ -8,6 +8,6 @@ The reference implementation has no runtime dependencies outside the Python stan
 
 ## Report a licensing problem
 
-Open an issue at [the repository issue tracker](https://github.com/michael-berardi/champollion/issues) with the exact repository path and revision, the material at issue, the claimed rightsholder or original source, and the evidence of conflicting rights or missing attribution. Cite the problematic passage rather than redistributing a full source export. Include the fixture or example identifier when applicable.
+Open an issue at [the repository issue tracker](https://github.com/your-github-username/champollion/issues) with the exact repository path and revision, the material at issue, the claimed rightsholder or original source, and the evidence of conflicting rights or missing attribution. Cite the problematic passage rather than redistributing a full source export. Include the fixture or example identifier when applicable.
 
 The maintainer will review the evidence and correct attribution, replace the material, or remove it as appropriate. A source with unknown rights must not be admitted merely to keep a check green (SRC-4; mechanical rights gate, judgment of rights determination). Record any resulting behavior change with its fixture and changelog entry.

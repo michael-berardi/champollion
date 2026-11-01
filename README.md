@@ -36,19 +36,21 @@ Use a new directory for the install and example below. On macOS or Linux:
 ```sh
 python3 -m venv .venv
 . .venv/bin/activate
-python3 -m pip install "champollion-protocol @ git+https://github.com/michael-berardi/champollion.git@v1.2.6"
+python3 -m pip install "champollion-protocol @ git+https://github.com/your-github-username/champollion.git@v1.3.0"
 ```
 
 On Windows, create the environment with `py -3 -m venv .venv`, activate it with `.\.venv\Scripts\Activate.ps1`, then run the same install command using `python -m pip`.
 
-Tagged releases also include a wheel, a source archive, and `SHA256SUMS` on the [releases page](https://github.com/michael-berardi/champollion/releases).
+Replace `your-github-username` in the commands and links on this page with this repository's GitHub owner, shown in its address bar.
+
+Tagged releases also include a wheel, a source archive, and `SHA256SUMS` on the [releases page](https://github.com/your-github-username/champollion/releases).
 
 ## Try a complete example
 
 After installing, download the example and run its checks:
 
 ```sh
-git clone --branch v1.2.6 --depth 1 https://github.com/michael-berardi/champollion.git
+git clone --branch v1.3.0 --depth 1 https://github.com/your-github-username/champollion.git
 champollion check --root champollion/examples/latin-to-spanish
 champollion report --root champollion/examples/latin-to-spanish --json
 ```
@@ -102,7 +104,7 @@ champollion export works/analects.md --out books/ --publisher "My Press"
 
 ## Contribute
 
-Use the [issue tracker](https://github.com/michael-berardi/champollion/issues) to report a bug, a false positive, or a proposed improvement to the method. Include the command, profile, and a small example you have permission to share.
+Use the [issue tracker](https://github.com/your-github-username/champollion/issues) to report a bug, a false positive, or a proposed improvement to the method. Include the command, profile, and a small example you have permission to share.
 
 Changes to a check should include a test that reproduces the problem and a passing example. Run the test suite from a checkout:
 
