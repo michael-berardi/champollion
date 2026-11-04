@@ -7,8 +7,8 @@ name = "champollion-protocol"
 version = "1.2.6"
 description = "Translation protocol with offline mechanical checks and recorded judgement; does not translate or certify sense"
 readme = "README.md"
-license = "MIT AND CC-BY-4.0"
-license-files = ["LICENSE", "LICENSE-docs"]
+license = "MIT AND CC-BY-4.0 AND CC0-1.0"
+license-files = ["LICENSE", "LICENSE-docs", "examples/latin-to-spanish/CC0.md"]
 requires-python = ">=3.9"
 dependencies = []
 authors = [{ name = "Michael Berardi" }]
