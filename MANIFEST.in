@@ -6,3 +6,5 @@ recursive-include tests *.py *.md *.json *.txt
 recursive-include src/champollion/profiles *.json
 recursive-include scripts *.py
 global-exclude *.pyc *.pyo .DS_Store
+
+recursive-include src/champollion/schemas *.json

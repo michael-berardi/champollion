@@ -1,7 +1,7 @@
 # From source to edition
 
 Champollion keeps the source recoverable, the translations independent, and the
-review evidence inspectable. The following seven stages apply to people and
+review evidence inspectable. The following eight stages apply to people and
 external translation systems. The checker never produces a translation.
 
 ## 1. Choose and name the work
@@ -54,7 +54,13 @@ REG-2–REG-11, WRK-1–WRK-6. Validate returned units before integrating them. 
 writes a separate copy and refuses gaps or marker mismatches. See
 [registers](registers.md) and [collaborator guidance](ai-workers.md).
 
-## 5. Check the observable requirements
+## 5. Summarise
+
+After both editions pass their checks, prepare and review an optional complete
+study guide and machine index. Regenerate it when its basis changes. See
+[summaries](summaries.md).
+
+## 6. Check the observable requirements
 
 ```sh
 champollion check --json
@@ -66,7 +72,7 @@ inapplicable, or unsupported gate is not a pass. A plausible length or matched
 heading cannot prove completeness of sense. Checking makes no network calls and
 never changes the work. See [verification](verification.md).
 
-## 6. Review meaning and record the judgement
+## 7. Review meaning and record the judgement
 
 Compare each unit's first and last source passage with its translation. Read a
 sample aloud in every register. Check terms, names, figures, sense, poetic form,
@@ -77,7 +83,7 @@ resolutions, bound to the reviewed work, source and profile fingerprints.
 PRV-2–PRV-5. `champollion report --json` presents recorded evidence; it does not
 create a review or perform these readings.
 
-## 7. Publish the work with its evidence
+## 8. Publish the work with its evidence
 
 Rerun affected checks after edits. Keep source evidence, credits, production notes,
 attestations, reports and reviews outside the reader-facing translation. Publish

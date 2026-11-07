@@ -6,6 +6,18 @@ Champollion enforces mechanical requirements and records judgement (VER-1). It d
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-11-07
+
+### Added
+
+- Summaries: an optional study-guide sidecar for each complete work (`summaries/<work-id>.json`, format `champollion-summary/1`). It holds a one-line gist, an overview, authorial context, key facts, key ideas tracked to the units where they are developed, a summary of every unit, figures, terms, explained verbatim passages, and a machine index (genres, forms, themes, concepts, people, places, period, keywords, typed links to other works in the corpus). See [docs/summaries.md](docs/summaries.md).
+- `champollion summary units` prints a register's units and basis hash; `champollion summary schema` prints the structured-output schema for the drafted fields; `champollion summary check` validates sidecars offline with named codes (`SUM-SCHEMA`, `SUM-WORK`, `SUM-STALE`, `SUM-UNITS`, `SUM-LENGTH`, `SUM-XREF`, `SUM-PASSAGE`, `SUM-RELATED`, `SUM-SLUG`, `SUM-REVIEW` warning, `SUM-MISSING` with `--require`). A summary that no longer matches its edition fails as stale.
+- The summary check reads only front matter and section boundaries, so works accepted by a project's legacy gate can be summarised; `--works-glob` skips files without front matter, and related links resolve against the whole corpus even when only some works are checked.
+
+### Migration
+
+- Opt-in. No existing check, profile or vendored gate changes. Champollion ships no drafting model: the `aid` field records whatever tool or person drafted the summary.
+
 ## [1.3.0] - 2026-11-01
 
 ### Changed

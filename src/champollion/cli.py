@@ -90,6 +90,21 @@ def _parser() -> argparse.ArgumentParser:
     export.add_argument("--inline-emphasis", action="store_true", help="render paired *italics* and **bold** in edition text; off by default")
     export.add_argument("--chrome", help="Chrome/Chromium binary (or $CHAMPOLLION_CHROME)")
     _json_flag(export)
+    summary = commands.add_parser("summary").add_subparsers(dest="summary_command", required=True)
+    units = summary.add_parser("units")
+    units.add_argument("work")
+    units.add_argument("--register", default="plain")
+    units.add_argument("--profile")
+    _json_flag(units)
+    sc = summary.add_parser("check")
+    sc.add_argument("paths", nargs="*")
+    sc.add_argument("--root", default=".")
+    sc.add_argument("--profile")
+    sc.add_argument("--dir", default="summaries")
+    sc.add_argument("--works-glob")
+    sc.add_argument("--require", action="store_true")
+    _json_flag(sc)
+    summary.add_parser("schema")
     vendor = commands.add_parser("vendor")
     vendor.add_argument("--into", required=True)
     vendor.add_argument("--tag")
@@ -213,8 +228,78 @@ def _check(args: argparse.Namespace) -> int:
     return int(bool(counts["errors"] or (getattr(args, "strict", False) and counts["warnings"])))
 
 
+def _summary(args: argparse.Namespace) -> int:
+    from .summary import summary_prompt_spec, section_units, basis_hash, validate, _section, load_work as parse_work
+    from .findings import Finding, findings_json, format_finding
+    if args.summary_command == "schema":
+        print(json.dumps(summary_prompt_spec(), ensure_ascii=False, indent=2))
+        return 0
+    if args.summary_command == "units":
+        work = parse_work(args.work)
+        if args.profile or (Path.cwd() / "champollion.json").is_file():
+            profile = _profile(Path.cwd(), args.profile)
+        else:
+            from .profile import load_profile
+            from .vendor import profile_directory
+            profile = load_profile(profile_directory() / "mouseia.json")
+        units = section_units(work, args.register, profile)
+        digest = basis_hash(_section(work, args.register, profile))
+        result = {"work": work.front.get("slug") or Path(work.path).stem, "register": args.register,
+                  "sha256": digest, "units": [{"n": n, "label": label, "chars": len(text)} for n,label,text in units]}
+        _emit(result, args.json, "\n".join([f"sha256: {digest}"] + [f"{n} {label} ({len(text)} chars)" for n,label,text in units]))
+        return 0
+    root = Path(args.root).resolve()
+    profile = _profile(root, args.profile)
+    def _is_work(p: Path) -> bool:
+        try:
+            with open(p, encoding="utf-8") as fh:
+                return fh.readline().rstrip("\r\n") == "---"
+        except (OSError, UnicodeError):
+            return False
+    # A glob selects work documents only: registers and notes without front matter are not works.
+    paths = sorted(p for p in root.glob(args.works_glob) if _is_work(p)) if args.works_glob and not args.paths else _works(root, args.paths)
+    if not paths:
+        raise ChampollionError("no work documents selected", cause="configuration")
+    works = [parse_work(p) for p in paths]
+    # Related works may name any work of the corpus, not only the works selected for this check.
+    from .format import parse_front_matter
+    corpus_paths = set(paths)
+    if args.works_glob:
+        corpus_paths.update(p for p in root.glob(args.works_glob) if _is_work(p))
+    else:
+        for p in paths:
+            corpus_paths.update(q for q in Path(p).parent.glob("*.md") if _is_work(q))
+    ids = {w.front.get("slug") or Path(w.path).stem for w in works}
+    for p in corpus_paths:
+        try:
+            front, _ = parse_front_matter(Path(p).read_text(encoding="utf-8"), str(p))
+        except (ChampollionError, OSError, UnicodeError):
+            continue
+        ids.add(front.get("slug") or Path(p).stem)
+    findings = []
+    for work in works:
+        wid = work.front.get("slug") or Path(work.path).stem
+        if Path(wid).name != wid or wid in (".", ".."):
+            raise ChampollionError(f"invalid work id {wid!r}", cause="schema")
+        path = root / args.dir / (wid + ".json")
+        if not path.exists():
+            if args.require: findings.append(Finding("SUM-MISSING", "SUM-MISSING", "error", f"{path}: summary missing", work=wid))
+            continue
+        try:
+            obj = json.loads(path.read_text(encoding="utf-8"))
+        except (ValueError, UnicodeError) as exc:
+            findings.append(Finding("SUM-SCHEMA", "SUM-SCHEMA", "error", f"{path}: invalid JSON: {exc}", work=wid))
+            continue
+        findings.extend(validate(obj, work, profile, ids))
+    result = {"findings": findings_json(findings), "counts": {"errors": sum(f.severity == "error" for f in findings), "warnings": sum(f.severity == "warn" for f in findings)}}
+    _emit(result, args.json, "\n".join(format_finding(f) for f in findings) or "summary checks passed")
+    return int(bool(result["counts"]["errors"]))
+
+
 def _dispatch(args: argparse.Namespace) -> int:
     command = args.command
+    if command == "summary":
+        return _summary(args)
     if command in ("check", "lint", "report"):
         return _check(args)
     if command == "init":

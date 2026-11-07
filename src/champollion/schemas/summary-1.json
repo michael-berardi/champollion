@@ -1,0 +1,349 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "summary": {
+      "type": "object",
+      "properties": {
+        "gist": {
+          "type": "string",
+          "minLength": 1
+        },
+        "overview": {
+          "type": "string",
+          "minLength": 1
+        },
+        "context": {
+          "type": "string",
+          "minLength": 1
+        },
+        "key_facts": {
+          "type": "object",
+          "properties": {
+            "form": {
+              "type": "string"
+            },
+            "genre": {
+              "type": "string"
+            },
+            "composed": {
+              "type": "string"
+            },
+            "setting": {
+              "type": "string"
+            },
+            "narrator": {
+              "type": "string"
+            },
+            "structure": {
+              "type": "string"
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        },
+        "key_ideas": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1
+              },
+              "explanation": {
+                "type": "string",
+                "minLength": 1
+              },
+              "units": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "minItems": 0
+              }
+            },
+            "required": [
+              "id",
+              "title",
+              "explanation",
+              "units"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 3,
+          "maxItems": 12
+        },
+        "units": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "n": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "label": {
+                "type": "string"
+              },
+              "summary": {
+                "type": "string",
+                "minLength": 1
+              },
+              "ideas": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "minItems": 0
+              }
+            },
+            "required": [
+              "n",
+              "label",
+              "summary",
+              "ideas"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 1
+        },
+        "figures": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "role": {
+                "type": "string",
+                "minLength": 1
+              },
+              "units": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "minItems": 0
+              }
+            },
+            "required": [
+              "name",
+              "role",
+              "units"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 0,
+          "maxItems": 40
+        },
+        "terms": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "term": {
+                "type": "string",
+                "minLength": 1
+              },
+              "source_term": {
+                "type": "string"
+              },
+              "meaning": {
+                "type": "string",
+                "minLength": 1
+              },
+              "units": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "minItems": 0
+              }
+            },
+            "required": [
+              "term",
+              "source_term",
+              "meaning",
+              "units"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 0,
+          "maxItems": 30
+        },
+        "passages": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "unit": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "text": {
+                "type": "string",
+                "minLength": 1
+              },
+              "why": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "unit",
+              "text",
+              "why"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 0,
+          "maxItems": 10
+        }
+      },
+      "required": [
+        "gist",
+        "overview",
+        "context",
+        "key_facts",
+        "key_ideas",
+        "units",
+        "figures",
+        "terms",
+        "passages"
+      ],
+      "additionalProperties": false
+    },
+    "index": {
+      "type": "object",
+      "properties": {
+        "genres": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 0
+        },
+        "forms": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 0
+        },
+        "themes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 3,
+          "maxItems": 15
+        },
+        "concepts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 0,
+          "maxItems": 20
+        },
+        "people": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 0
+        },
+        "places": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 0
+        },
+        "period": {
+          "type": "string",
+          "minLength": 1
+        },
+        "keywords": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 0,
+          "maxItems": 25
+        },
+        "related": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "work": {
+                "type": "string",
+                "minLength": 1
+              },
+              "relation": {
+                "type": "string",
+                "enum": [
+                  "same-author",
+                  "responds-to",
+                  "answered-by",
+                  "influenced-by",
+                  "influences",
+                  "shares-theme",
+                  "same-tradition",
+                  "same-form"
+                ]
+              },
+              "note": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "work",
+              "relation",
+              "note"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 0
+        }
+      },
+      "required": [
+        "genres",
+        "forms",
+        "themes",
+        "concepts",
+        "people",
+        "places",
+        "period",
+        "keywords",
+        "related"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "summary",
+    "index"
+  ],
+  "additionalProperties": false
+}

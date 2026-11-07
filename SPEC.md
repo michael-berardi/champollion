@@ -365,3 +365,10 @@ Version the protocol, implementation, profile schema, and project profiles expli
 For each new gate or changed rule, supply a failing fixture, its rule ID, profile setting, report code, migration note, and changelog entry. Do not silently activate a new check in a deployed profile. Preserve an independently frozen oracle when claiming compatibility with Mouseia's legacy linter; compare outputs and exit codes, not the replacement with itself.
 
 Pin adopted implementations to an immutable tagged snapshot with local integrity evidence. Separate a clarification from a behavior-changing release; changing accepted inputs, gate behavior, or publication requirements incompatibly requires a major bump. Define field deprecation, exception expiry, rollback evidence, and profile migration under [docs/migration-policy.md](docs/migration-policy.md). Neither a version number nor a successful mechanical run replaces the judgement record.
+
+## Summary sidecars
+
+The optional `champollion-summary/1` sidecar binds a complete study guide and
+machine index to a named edition and its SHA-256. See [summaries](docs/summaries.md)
+for fields, unit splitting, checks and review workflow. Summary checks do not
+change the existing protocol gates or certify meaning.

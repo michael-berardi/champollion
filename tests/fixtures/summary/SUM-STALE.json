@@ -1,0 +1,103 @@
+{
+  "schema": "champollion-summary/1",
+  "work": "example",
+  "title": "Example",
+  "author": "An author",
+  "basis": {
+    "register": "plain",
+    "sha256": "bad",
+    "units": 3
+  },
+  "aid": "Machine assisted",
+  "generated": "2026-01-01",
+  "review": {
+    "status": "reviewed",
+    "by": "Reviewer",
+    "date": "2026-01-01",
+    "notes": "Checked"
+  },
+  "summary": {
+    "gist": "A gist.",
+    "overview": "An overview.",
+    "context": "A context.",
+    "key_facts": {},
+    "key_ideas": [
+      {
+        "id": "one",
+        "title": "Idea",
+        "explanation": "Explanation",
+        "units": [
+          1
+        ]
+      },
+      {
+        "id": "two",
+        "title": "Idea",
+        "explanation": "Explanation",
+        "units": [
+          1
+        ]
+      },
+      {
+        "id": "three",
+        "title": "Idea",
+        "explanation": "Explanation",
+        "units": [
+          1
+        ]
+      }
+    ],
+    "units": [
+      {
+        "n": 1,
+        "label": "",
+        "summary": "A summary",
+        "ideas": [
+          "one",
+          "two",
+          "three"
+        ]
+      },
+      {
+        "n": 2,
+        "label": "First",
+        "summary": "A summary",
+        "ideas": []
+      },
+      {
+        "n": 3,
+        "label": "Second",
+        "summary": "A summary",
+        "ideas": []
+      }
+    ],
+    "figures": [],
+    "terms": [],
+    "passages": [
+      {
+        "unit": 2,
+        "text": "A \"quoted\" passage - here.",
+        "why": "Important."
+      }
+    ]
+  },
+  "index": {
+    "genres": [
+      "story"
+    ],
+    "forms": [
+      "prose"
+    ],
+    "themes": [
+      "one",
+      "two",
+      "three"
+    ],
+    "concepts": [],
+    "people": [],
+    "places": [],
+    "period": "Unknown",
+    "keywords": [],
+    "related": []
+  }
+}
