@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=61"]
+requires = ["setuptools>=77.0.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -7,12 +7,12 @@ name = "champollion-protocol"
 version = "1.3.0"
 description = "Translation protocol with offline mechanical checks and recorded judgement; does not translate or certify sense"
 readme = "README.md"
-license = { text = "MIT (code); CC BY 4.0 (SPEC.md and docs/)" }
+license = "MIT AND CC-BY-4.0 AND CC0-1.0"
+license-files = ["LICENSE", "LICENSE-docs", "examples/latin-to-spanish/CC0.md"]
 requires-python = ">=3.9"
 dependencies = []
 authors = [{ name = "Michael Berardi" }]
 classifiers = [
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
@@ -37,7 +37,6 @@ Changelog = "https://github.com/your-github-username/champollion/blob/v1.3.0/CHA
 
 [tool.setuptools]
 package-dir = { "" = "src" }
-license-files = ["LICENSE", "LICENSE-docs"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
