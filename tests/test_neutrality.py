@@ -9,7 +9,7 @@ Not scanned, by design:
 * ``LICENSE`` and ``LICENSE-docs``: legal attribution.
 * The ``authors`` field of ``pyproject.toml``: package-metadata attribution.
   The rest of ``pyproject.toml`` (version, URLs, description) is scanned.
-* ``tests/``: synthetic fixtures and test code.
+* The neutrality test itself: it contains examples of the patterns.
 
 Documented technical identities that stay named on purpose:
 
@@ -28,6 +28,8 @@ pattern catches; an ordered declaration in brackets or braces is caught by
 """
 import os
 import re
+import tempfile
+from pathlib import Path
 import unittest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -73,13 +75,29 @@ FALLBACK_CHAIN = re.compile(r"\bfallbacks?\b\s*[\"']?\s*[:=]\s*[\[{]", re.IGNORE
 # handle in a URL cannot slip through. Mouseia is deliberately absent: it is
 # an external format identity, not a person.
 PERSONAL = re.compile(
-    r"\b(?:Mike|Michael|Berardi|Liberty ?Design|acme|acme)\b"
+    r"\b(?:Mike|Michael|Berardi|Liberty ?Design)\b"
     r"|libertydesign|/Users/[a-z]",
     re.IGNORECASE,
 )
 # Documented exceptions: (relative file, text the line contains, why it stays).
 # Empty today: neutral placeholders read as well as the original handle.
 ALLOWED = ()
+
+
+def load_private_terms(path=None):
+    path = Path(path or os.environ.get("OSS_PRIVATE_TERMS", "~/.config/oss-audit/names.txt")).expanduser()
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except FileNotFoundError:
+        return None
+    terms = [line.strip() for line in lines if line.strip() and not line.strip().startswith("#")]
+    if not terms:
+        return None
+    patterns = [(r"\b" if term[0].isalnum() or term[0] == "_" else "")
+                + re.escape(term)
+                + (r"\b" if term[-1].isalnum() or term[-1] == "_" else "")
+                for term in terms]
+    return re.compile("|".join(patterns), re.IGNORECASE)
 
 
 def walk(directory):
@@ -93,16 +111,18 @@ def walk(directory):
             yield full
 
 
-def shipped():
+def shipped(include_tests=False):
     """Every scanned text as (relative path, content)."""
     files = []
     for directory in SHIPPED_DIRS:
         files.extend(walk(os.path.join(ROOT, directory)))
+    if include_tests:
+        files.extend(walk(os.path.join(ROOT, "tests")))
     files.extend(os.path.join(ROOT, name) for name in SHIPPED_FILES)
     texts = []
     for path in files:
         relative = os.path.relpath(path, ROOT)
-        if relative in LEGAL_ATTRIBUTION_FILES:
+        if relative == "tests/test_neutrality.py" or relative in LEGAL_ATTRIBUTION_FILES:
             continue
         with open(path, encoding="utf-8") as handle:
             text = handle.read()
@@ -115,9 +135,9 @@ def shipped():
     return texts
 
 
-def hits(pattern):
+def hits(pattern, include_tests=False):
     found = []
-    for file, text in shipped():
+    for file, text in shipped(include_tests):
         for number, line in enumerate(text.splitlines(), 1):
             if not pattern.search(line):
                 continue
@@ -128,6 +148,20 @@ def hits(pattern):
 
 
 class NeutralityTests(unittest.TestCase):
+    def test_private_terms_loader(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "terms.txt"
+            path.write_text("# comment\n\nzzqx-private-term\n", encoding="utf-8")
+            pattern = load_private_terms(path)
+            self.assertIsNotNone(pattern)
+            text = Path(directory) / "sample.txt"
+            text.write_text("a ZZQX-private-term here", encoding="utf-8")
+            self.assertRegex(text.read_text(encoding="utf-8"), pattern)
+            text.write_text("a neutral text", encoding="utf-8")
+            self.assertNotRegex(text.read_text(encoding="utf-8"), pattern)
+            self.assertNotRegex("azzqx-private-termz", pattern)
+            self.assertIsNone(load_private_terms(Path(directory) / "missing"))
+
     def test_scans_the_shipped_tree_not_an_empty_set(self):
         scanned = shipped()
         files = [file for file, _ in scanned]
@@ -205,7 +239,10 @@ class NeutralityTests(unittest.TestCase):
         self.assertEqual(hits(FALLBACK_CHAIN), [])
 
     def test_names_no_person_or_private_path(self):
-        self.assertEqual(hits(PERSONAL), [])
+        self.assertEqual(hits(PERSONAL, include_tests=True), [])
+        private = load_private_terms()
+        if private:
+            self.assertEqual(hits(private, include_tests=True), [])
 
 
 if __name__ == "__main__":
