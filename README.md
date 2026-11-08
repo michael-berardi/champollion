@@ -118,3 +118,7 @@ make test
 ## License
 
 Code is [MIT-licensed](LICENSE). The specification and documentation are [CC BY 4.0](LICENSE-docs). Source texts retain their own rights; using Champollion does not change them. See [THIRD-PARTY.md](THIRD-PARTY.md) for notices and [SECURITY.md](SECURITY.md) for security reports.
+
+---
+
+Part of [Pareto Cybernetics](https://paretocybernetics.com/projects/champollion/): free, private, open-source tools for working with AI agents.
