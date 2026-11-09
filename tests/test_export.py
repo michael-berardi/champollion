@@ -129,6 +129,13 @@ class RefsCase(unittest.TestCase):
 
 
 class TypesetCase(unittest.TestCase):
+    def test_perseus_sources_credit_the_project_trustees_not_the_library(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            work = write(tmp, "work.md", WORK)
+            html = print_html(load_book(work, "musean"), Options())
+            self.assertIn("Original text from the Perseus Project, Trustees of Tufts University.", html)
+            self.assertNotIn("Perseus Digital Library", html)
+
     def test_smart_quotes_apostrophes_and_ellipses(self):
         self.assertEqual(smarten('"It\'s," he said... \'tis'), "“It’s,” he said… ‘tis")
 

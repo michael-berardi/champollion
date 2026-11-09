@@ -6,6 +6,13 @@ Champollion enforces mechanical requirements and records judgement (VER-1). It d
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-11-09
+
+### Fixed
+
+- The export credits PerseusDL-hosted original texts to `the Perseus Project, Trustees of Tufts University`, the rights holder named in the TEI headers, instead of `the Perseus Digital Library`, which hosts the files but is not the rights holder.
+- Migration: re-vendor the new release and verify the snapshot and focused fixtures before adopting it. No checker, profile or protocol change.
+
 ## [1.4.0] - 2026-11-07
 
 ### Added

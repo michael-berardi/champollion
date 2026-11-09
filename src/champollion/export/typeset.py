@@ -157,7 +157,7 @@ def source_host(url: str) -> str:
     if not url:
         return ""
     if re.search(r"github(usercontent)?\.com/PerseusDL/", url, re.I):
-        return "the Perseus Digital Library"
+        return "the Perseus Project, Trustees of Tufts University"
     try:
         host = (urlparse(url).hostname or "").removeprefix("www.")
         return "a pinned GitHub edition" if host in ("github.com", "raw.githubusercontent.com") else host
