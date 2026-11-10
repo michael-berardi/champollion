@@ -821,6 +821,41 @@ class PdfCase(unittest.TestCase):
                 export_book(write(tmp, "wide.md", wide), "original", ["pdf"], str(Path(tmp) / "wide"), Options(unit_noun="Chapter"))
             self.assertEqual(ctx.exception.cause, "PAGE-OVERFLOW")
 
+    def test_pdf_settles_heading_drift_with_equal_page_counts(self):
+        """The probe's invisible marker can push one heading to the next page while the probe's and
+        clean page counts still agree (Chrome CJK pagination drift, 2026-11-08). The clean PDF must
+        then be re-measured and re-settled, not refused."""
+        from champollion.export import build as build_mod
+        with tempfile.TemporaryDirectory() as tmp:
+            book = load_book(write(tmp, "drift.md", CHAPTERS), "musean")
+            book.units[0].label = "The First Great Chapter"
+            book.units[1].label = "The Second Great Chapter"
+            out = str(Path(tmp) / "out.pdf")
+            renders, verifies = [], []
+            texts = [""] * 12
+            texts[5] = "The First Great Chapter"
+            texts[8] = "The Second Great Chapter"
+
+            def fake_verify(bk, o, path, pages):
+                verifies.append(dict(pages))
+                if len(verifies) <= 3:  # the probe keeps guessing; only the settled map is right
+                    raise ChampollionError("contents numbers do not match headings", cause="ENGINE-FAILED")
+
+            with mock.patch.object(build_mod, "require_poppler"), \
+                 mock.patch.object(build_mod, "prepare", lambda b: b), \
+                 mock.patch.object(build_mod, "print_html", lambda b, o, base_css="": "<html></html>"), \
+                 mock.patch.object(build_mod, "html_to_pdf", lambda html, path, chrome, timeout: renders.append(path)), \
+                 mock.patch.object(build_mod, "pdf_pages", lambda path: 12), \
+                 mock.patch.object(build_mod, "locate_body", lambda path: 1), \
+                 mock.patch.object(build_mod, "locate_markers", lambda path, count: {0: 7, 1: 9}), \
+                 mock.patch.object(build_mod, "page_texts", lambda path: texts), \
+                 mock.patch.object(build_mod, "_verify_contents", side_effect=fake_verify), \
+                 mock.patch.object(build_mod, "_finish_pdf", lambda b, o, path: [{"kind": "pdf", "path": path}]):
+                result = build_mod.export_pdf(book, Options(unit_noun="Chapter"), out, "chrome")
+            self.assertEqual(result, [{"kind": "pdf", "path": out}])
+            self.assertEqual(len(renders), 7)  # three probe/clean attempts, then the settled clean render
+            self.assertEqual(verifies, [{0: 7, 1: 9}, {0: 7, 1: 9}, {0: 7, 1: 9}, {0: 6, 1: 9}])
+
 
 if __name__ == "__main__":
     unittest.main()

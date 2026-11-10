@@ -101,7 +101,8 @@ def export_pdf(book: Book, opts: Options, out_path: str, chrome: str) -> Dict[st
     """Typeset to PDF. A probe pass prints the PDF page number as the folio, so the first page ending on its own number
     is where the text begins; the clean pass then prints folios from 1 there. For divided books the probe's invisible
     per-division markers also give each division's page for the contents; the clean result is checked to have the
-    probe's page count, and re-measured if not."""
+    probe's page count, and re-measured if not, or if a heading drifted a page under the probe's marker even though the
+    counts agree."""
     require_poppler()
     book = prepare(book)
     numbered = book.divided and len(book.units) > 1 and not book.ref_mode
@@ -124,13 +125,19 @@ def export_pdf(book: Book, opts: Options, out_path: str, chrome: str) -> Dict[st
             html = print_html(book, opts)
             html_to_pdf(html, out_path, chrome, _timeout(html))
             pages = pdf_pages(out_path)
-            if not numbered or pages == probe_pages:
-                if numbered:
-                    _verify_contents(book, opts, out_path, pages_map or {})
+            if not numbered:
                 return _finish_pdf(book, opts, out_path)
+            if pages == probe_pages:
+                try:
+                    _verify_contents(book, opts, out_path, pages_map or {})
+                except ChampollionError:
+                    pass  # a heading drifted under the probe's marker; settle it from the clean PDF below
+                else:
+                    return _finish_pdf(book, opts, out_path)
         if numbered and pages_map:
-            # The probe's markers shifted a break by a page, so probe and clean page counts never agree. Read each
-            # heading's page from the clean PDF itself (within a page of the probe's guess), then confirm it still holds.
+            # The probe's markers shifted a break by a page (the page counts never agree, or a heading drifted while
+            # they did). Read each heading's page from the clean PDF itself (within a page of the probe's guess),
+            # then confirm it still holds.
             norm = lambda t: re.sub(r"\s+", "", t).casefold()
             texts = page_texts(out_path)
             fixed: Dict[int, int] = {}
