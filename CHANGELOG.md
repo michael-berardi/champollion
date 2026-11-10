@@ -6,13 +6,15 @@ Champollion enforces mechanical requirements and records judgement (VER-1). It d
 
 ## [Unreleased]
 
-## [1.4.2] - 2026-11-09
+## [1.4.3] - 2026-11-10
 
 ### Fixed
-- PDF export: when the probe's invisible division markers disagree with the clean PDF's pagination even
-  though the page counts agree (a heading drifted a page under the probe, seen with Chrome CJK pagination
-  in the 2026-11-08 huangting export), the clean PDF is re-measured from its own text within a page of the
-  probe's guess and re-settled, instead of failing with "contents numbers do not match headings".
+
+- PDF export: when the probe's invisible division markers disagree with the clean PDF's pagination even though the page counts agree (a heading drifted a page under the probe, seen with Chrome CJK pagination in the 2026-11-08 huangting export), the clean PDF is re-measured from its own text within a page of the probe's guess and re-settled, instead of failing with "contents numbers do not match headings".
+- Tag `v1.4.2` was pushed with this fix but never released: its tree still declared version 1.4.1, so it was not published as 1.4.2. Version 1.4.2 is not a released version; 1.4.3 is the first release of this fix.
+- Migration: re-vendor the new release and verify the snapshot and focused fixtures before adopting it. No checker, profile or protocol change.
+
+## [1.4.1] - 2026-11-09
 
 ### Fixed
 
