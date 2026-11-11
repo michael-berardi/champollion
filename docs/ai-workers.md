@@ -80,3 +80,13 @@ use. Name machine assistance honestly. These are accountable project records;
 software cannot reconstruct production history or establish their truthfulness.
 Keep them outside reader-facing text under PRV-4. Publication requires current
 review evidence, not just validated assembly.
+
+## Review against the source
+
+After assembly, `champollion review` prepares a passage-by-passage review of every
+register against the Original: reviewer packets, an independent second reading of
+each finding, and guarded application of only the confirmed corrections. It writes
+packets and reads reply files; it never calls a model. Source findings are recorded
+for the editor, never auto-applied, and a model-run review must be recorded as
+machine review, not human editorial approval. See [review](review.md) and
+[VER-10/VER-11](verification.md).

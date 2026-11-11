@@ -6,6 +6,13 @@ Champollion enforces mechanical requirements and records judgement (VER-1). It d
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-11-11
+
+### Added
+
+- Source-language review: an opt-in `champollion review` command group (`packets`, `verify-packets`, `apply`, `record`) that cuts every unit of the Original and every aligned register into parallel passages, writes deterministic reviewer packets bound to passage hashes, validates reviewer replies and writes independent second-reader packets, applies only confirmed or amended findings by exact single-match replacement under named refusal rules (stale passage, non-unique quotation, changed markers/line breaks/headings, disproportionate fixes, overlapping edits), never edits the Original, and writes a VER-11-shaped review record that `report` accepts. Offline and provider-neutral: packets and reply files only, no model calls. See [docs/review.md](docs/review.md).
+- Migration: opt-in. No existing check, profile or vendored gate changes. A model-run review is machine review and must be recorded as such, never as human editorial approval.
+
 ## [1.4.3] - 2026-11-10
 
 ### Fixed

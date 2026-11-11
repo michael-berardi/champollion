@@ -22,7 +22,7 @@ Other projects can define their own translation styles and target languages. Cha
 3. **Keep the source's structure.** Divide it into matching sections. Preserve meaningful lines, stanzas, paragraphs, and reference numbers.
 4. **Translate independently.** Make each edition directly from the original. Give collaborators separate tasks for each edition, without showing them the other's translation.
 5. **Run the checks.** Fix structural errors and investigate passages flagged for missing content, copied wording, or text corruption.
-6. **Review against the source.** Compare each section's opening and ending. Check meaning, names, numbers, and technical terms. Read a sample aloud in each edition, then record the reviewer, findings, and corrections.
+6. **Review against the source.** Compare each section's opening and ending. Check meaning, names, numbers, and technical terms. Read a sample aloud in each edition, then record the reviewer, findings, and corrections. The optional `champollion review` commands extend this to every passage: reviewer packets, an independent second reading, and guarded application of only confirmed corrections. See [review](docs/review.md).
 7. **Publish with the evidence.** Keep the source, translator credits, and review records with the work. Resolve blocking findings before publishing.
 8. **Summarise (optional).** Write a complete study guide to the work: what it says or narrates unit by unit, its key ideas, figures, terms and passages, plus a machine index that links it to related works. `champollion summary check` keeps it in step with the edition. See [summaries](docs/summaries.md).
 
@@ -37,7 +37,7 @@ Use a new directory for the install and example below. On macOS or Linux:
 ```sh
 python3 -m venv .venv
 . .venv/bin/activate
-python3 -m pip install "champollion-protocol @ git+https://github.com/your-github-username/champollion.git@v1.4.3"
+python3 -m pip install "champollion-protocol @ git+https://github.com/your-github-username/champollion.git@v1.5.0"
 ```
 
 On Windows, create the environment with `py -3 -m venv .venv`, activate it with `.\.venv\Scripts\Activate.ps1`, then run the same install command using `python -m pip`.
@@ -51,7 +51,7 @@ Tagged releases also include a wheel, a source archive, and `SHA256SUMS` on the 
 After installing, download the example and run its checks:
 
 ```sh
-git clone --branch v1.4.3 --depth 1 https://github.com/your-github-username/champollion.git
+git clone --branch v1.5.0 --depth 1 https://github.com/your-github-username/champollion.git
 champollion check --root champollion/examples/latin-to-spanish
 champollion report --root champollion/examples/latin-to-spanish --json
 ```

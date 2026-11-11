@@ -112,6 +112,40 @@ def _parser() -> argparse.ArgumentParser:
     verify = commands.add_parser("verify-vendor")
     verify.add_argument("directory", nargs="?", default=".")
     _json_flag(verify)
+    review = commands.add_parser("review", help="source-language review: packets, second reading, guarded apply, record")
+    review_sub = review.add_subparsers(dest="review_command", required=True)
+    rp = review_sub.add_parser("packets", help="write one deterministic reviewer packet per passage")
+    rp.add_argument("--work", required=True)
+    rp.add_argument("--out", required=True)
+    rp.add_argument("--root", default=".")
+    rp.add_argument("--profile")
+    rp.add_argument("--piece-chars", type=int, default=5000)
+    _json_flag(rp)
+    rv = review_sub.add_parser("verify-packets", help="validate reviewer replies and write second-reader packets")
+    rv.add_argument("--work", required=True)
+    rv.add_argument("--replies", required=True)
+    rv.add_argument("--out", required=True)
+    rv.add_argument("--root", default=".")
+    rv.add_argument("--profile")
+    rv.add_argument("--index", help="packets index.json (default: <replies>/index.json)")
+    _json_flag(rv)
+    ra = review_sub.add_parser("apply", help="apply only findings the second reader confirmed or amended")
+    ra.add_argument("--work", required=True)
+    ra.add_argument("--replies", required=True)
+    ra.add_argument("--root", default=".")
+    ra.add_argument("--profile")
+    ra.add_argument("--index", help="verify index.json (default: <replies>/index.json)")
+    ra.add_argument("--dry-run", action="store_true")
+    _json_flag(ra)
+    rr = review_sub.add_parser("record", help="write a VER-11-shaped review record without changing the work")
+    rr.add_argument("--work", required=True)
+    rr.add_argument("--replies", required=True)
+    rr.add_argument("--reviewer", required=True)
+    rr.add_argument("--out", required=True)
+    rr.add_argument("--root", default=".")
+    rr.add_argument("--profile")
+    rr.add_argument("--index", help="verify index.json (default: <replies>/index.json)")
+    _json_flag(rr)
     return parser
 
 
@@ -296,10 +330,41 @@ def _summary(args: argparse.Namespace) -> int:
     return int(bool(result["counts"]["errors"]))
 
 
+def _review(args: argparse.Namespace) -> int:
+    from .review import ReviewWork, apply_findings, review_record, verify_packets, write_review_packets
+    root = Path(args.root).resolve()
+    profile = _profile(root, args.profile)
+    work_path = Path(args.work)
+    work = ReviewWork(work_path if work_path.is_absolute() else root / work_path, profile, str(root))
+    if args.review_command == "packets":
+        result = write_review_packets(work, args.out, args.piece_chars)
+        _emit(result, args.json, "\n".join(str(Path(result["out"]) / p["file"]) for p in result["pieces"]))
+        return 0
+    if args.review_command == "verify-packets":
+        result = verify_packets(work, args.replies, args.out, args.index)
+        _emit(result, args.json, f"{result['packets']} second-reader packets, {result['proposals']} proposals, "
+                                 f"{len(result['invalid_replies'])} invalid replies")
+        return int(bool(result["invalid_replies"]))
+    if args.review_command == "apply":
+        result = apply_findings(work, args.replies, args.index, write=not args.dry_run)
+        lines = ([f"applied {m['id']} [{m['edition']}]: {m['quote'][:60]!r}" for m in result["applied"]]
+                 + [f"refused {m['id']} [{m['edition']}]: {m['refusal']}" for m in result["refused"]]
+                 + [f"rejected {m['id']} [{m['edition']}] by second reader" for m in result["rejected"]]
+                 + [f"source finding {m['id']}: left for the editor" for m in result["source_findings"]])
+        _emit(result, args.json, "\n".join(lines) if lines else "nothing to apply")
+        return int(bool(result["refused"] or result["invalid_replies"]))
+    result = review_record(work, args.replies, args.reviewer, args.out, args.index)
+    record = {key: value for key, value in result.items() if key != "record"}
+    _emit(record, args.json, f"recorded review of {result['work']} to {result['out']}")
+    return 0
+
+
 def _dispatch(args: argparse.Namespace) -> int:
     command = args.command
     if command == "summary":
         return _summary(args)
+    if command == "review":
+        return _review(args)
     if command in ("check", "lint", "report"):
         return _check(args)
     if command == "init":

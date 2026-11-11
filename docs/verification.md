@@ -130,11 +130,15 @@ Read the code as a missing record, disallowed value, or integrity failure. Trace
 
 This procedure follows Mouseia's `docs/translation-guidelines.md` §7. A person or reviewing model can perform it; either must name uncertainties and record findings. Sampling and endpoints are review evidence, not proof that every interior line is faithful.
 
+The optional `champollion review` commands ([review guide](review.md)) support a full passage-by-passage reading: deterministic reviewer packets cut every unit of the Original and every aligned register into parallel passages, an independent second reader confirms, amends or rejects each finding, and only confirmed corrections are applied by exact single-match replacement under named refusal rules. The Original is never auto-edited. The tooling stays offline and provider-neutral; a model-run review is machine review and must be recorded as such, never as human editorial approval.
+
 ## VER-11 Review record
 
 **Mechanical record completeness; judgement in its contents.** Record the reviewer, date, protocol version, findings, and resolutions for every review. Identify a person or model accurately. Record which units were read aloud, endpoint coverage, spot-check scope, and any unresolved questions so another reviewer can understand what was examined.
 
 Record a clean review explicitly rather than leaving findings absent. A resolution names the correction or the reason for a recorded exception; it is not merely “reviewed.” `VER-11` indicates missing review evidence. Champollion can check record presence and required fields; it cannot verify that a reviewer performed the reading or that a resolution is sound.
+
+`champollion review record` writes a record in this shape: reviewer identity as supplied, date, protocol version, work SHA-256, profile fingerprint, source snapshot SHA-256, reviewed units and registers, every finding with its resolution (applied, rejected by the second reader, refused with a reason, or a source finding left for the editor), and the passages not reviewed. Refused and source findings remain unresolved findings, so the publication gate stays blocked until an editor resolves them. See [review](review.md).
 
 ## VER-12 Exceptions
 

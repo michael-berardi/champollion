@@ -14,10 +14,15 @@ import tarfile
 
 ROOT = Path(__file__).resolve().parents[1]
 EPOCH = 1791849600  # 2026-10-13 UTC, fixed release epoch.
-VERSION = '1.4.3'
+VERSION = '1.5.0'
 
 
 def main():
+    try:
+        import setuptools  # noqa: F401
+    except ImportError:
+        raise SystemExit(f'Champollion release build needs setuptools>=77 in {sys.executable}; '
+                         'run it with an interpreter that has it, e.g. make release PYTHON=python3.14')
     output = ROOT / 'dist'
     output.mkdir(exist_ok=True)
     environment = dict(os.environ, SOURCE_DATE_EPOCH=str(EPOCH), PYTHONDONTWRITEBYTECODE='1')

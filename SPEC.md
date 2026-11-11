@@ -356,7 +356,7 @@ Run every mandatory core gate and every enabled applicable profile gate. Record 
 
 Conformance means the required gates ran and the review record exists, with no unresolved blocking finding or overdue exception. It never means the translation is good, faithful in sense, legally certified, or independently proven to have a particular production history. A project may report a mechanical check without claiming protocol conformance.
 
-The reference implementation targets Python 3.9+ and the standard library only. Checks read local evidence, make no network calls, and do not require a hosted service or a translation model. Checks never edit work documents. Writing commands are `init`, `source add`, `vendor`, `packets --out`, and `assemble`. Packets without `--out` print to stdout; assembly writes a separate copy and leaves the input unchanged.
+The reference implementation targets Python 3.9+ and the standard library only. Checks read local evidence, make no network calls, and do not require a hosted service or a translation model. Checks never edit work documents. Writing commands are `init`, `source add`, `vendor`, `packets --out`, `assemble`, and the opt-in `review` group (`review packets`, `review verify-packets`, `review apply`, `review record`). Packets without `--out` print to stdout; assembly writes a separate copy and leaves the input unchanged. `review apply` edits only register passages, by exact single-match replacement of findings a second reader confirmed, under named refusal rules; it never edits the Original, and `review record` writes a VER-11-shaped record. The review commands write packets and read reply files offline; they call no model.
 
 ## 11. Versioning and change discipline
 
