@@ -4,6 +4,15 @@ Changes are recorded in [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
 Champollion enforces mechanical requirements and records judgement (VER-1). It does not translate or certify sense. The dated 1.0.0 entry records release contents, not approval to publish; SPEC.md remains a working specification until publication is approved.
 
+## [1.6.1] - 2026-11-11
+
+### Fixed
+
+- Windows installer: the `champollion.cmd` command was written as ASCII with an absolute path, so a Windows profile name with accents (for example `C:\Users\José`) produced a command pointing at nothing. The default command now uses a path relative to its own folder; a `CHAMPOLLION_BIN_DIR` override writes the absolute path in the console's OEM code page.
+- Windows installer: if moving the new install into place failed, the previous install stayed moved aside; it is now put back.
+- Windows installer: the user Path is read without expanding `%VAR%` entries, so existing entries are no longer rewritten as hard-coded paths; a relative or `/`-style `CHAMPOLLION_HOME` or `CHAMPOLLION_BIN_DIR` is normalised first; stderr lines from `python`, `pip` and the health check no longer abort the install on Windows PowerShell 5.1; the installer no longer leaves its preferences or function in the user's session after `irm | iex`.
+- Both installers never overwrite a `champollion` command they did not write (their own command carries a marker line) and say so in one line, and both print the health check's result instead of discarding it.
+
 ## [1.6.0] - 2026-11-11
 
 ### Added

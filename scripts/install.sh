@@ -7,7 +7,7 @@
 # under ~/.champollion. The package is pure Python standard library with no dependencies, so nothing else
 # is fetched. Uses the Python 3.9+ already on this machine; if none exists it says how to install one.
 # Environment: CHAMPOLLION_HOME (default ~/.champollion), CHAMPOLLION_BIN_DIR (default ~/.local/bin),
-# CHAMPOLLION_VERSION (default: latest, e.g. 1.6.0), CHAMPOLLION_RELEASE_BASE (override the download base URL, used by tests).
+# CHAMPOLLION_VERSION (default: latest, e.g. 1.6.1), CHAMPOLLION_RELEASE_BASE (override the download base URL, used by tests).
 set -eu
 
 REPO="your-github-username/champollion"
@@ -97,15 +97,24 @@ rm -rf "$VENV.old"
 
 # The venv was staged under a temporary name, so its console-script shebangs are stale; the shim runs the
 # module through the venv interpreter instead, which is location-independent.
-cat > "$BIN_DIR/champollion.tmp.$$" <<SHIM
+# Never overwrite a file this installer did not write: only a file carrying the marker is ours.
+SHIM="$BIN_DIR/champollion"
+if [ -e "$SHIM" ] && ! grep -q 'champollion-installer-shim' "$SHIM" 2>/dev/null; then
+  say "Left $SHIM alone: it exists and was not written by this installer. Run Champollion with: $VENV/bin/python -m champollion"
+  SHIM="$VENV/bin/python -m champollion"
+  HEALTH=$("$VENV/bin/python" -m champollion --help 2>&1) || die "the installed command does not run: $SHIM --help"
+else
+  cat > "$BIN_DIR/champollion.tmp.$$" <<SHIM
 #!/bin/sh
+# champollion-installer-shim
 exec "$VENV/bin/python" -m champollion "\$@"
 SHIM
-chmod 755 "$BIN_DIR/champollion.tmp.$$"
-mv -f "$BIN_DIR/champollion.tmp.$$" "$BIN_DIR/champollion"
-
-"$BIN_DIR/champollion" --help >/dev/null 2>&1 || die "the installed command does not run: $BIN_DIR/champollion --help"
-say "Champollion $VERSION installed ($BIN_DIR/champollion)."
+  chmod 755 "$BIN_DIR/champollion.tmp.$$"
+  mv -f "$BIN_DIR/champollion.tmp.$$" "$SHIM"
+  HEALTH=$("$SHIM" --help 2>&1) || die "the installed command does not run: $SHIM --help (${HEALTH:-no output})"
+fi
+say "Health check: $(printf '%s\n' "$HEALTH" | head -n 1)"
+say "Champollion $VERSION installed ($SHIM)."
 case ":$PATH:" in *":$BIN_DIR:"*) ;; *) say "Add $BIN_DIR to your PATH:  export PATH=\"$BIN_DIR:\$PATH\"" ;; esac
 say "Next: champollion init my-translation"
 }

@@ -59,6 +59,17 @@ grep -q 'checksum mismatch' "$T/h3.log" || { cat "$T/h3.log" >&2; echo "test-ins
 [ ! -e "$T/h3/.champollion" ] || { echo "test-install: corrupted run left an install behind" >&2; exit 1; }
 echo "host corruption refusal ok"
 
+echo "== host: foreign command left alone, own shim upgraded =="
+mkdir -p "$T/h5/.local/bin"
+printf '#!/bin/sh\necho foreign\n' > "$T/h5/.local/bin/champollion"; chmod 755 "$T/h5/.local/bin/champollion"
+HOME="$T/h5" CHAMPOLLION_RELEASE_BASE="$BASE/good" sh scripts/install.sh >"$T/h5.log" 2>&1 || { cat "$T/h5.log" >&2; exit 1; }
+grep -q 'Left .* alone' "$T/h5.log" || { cat "$T/h5.log" >&2; echo "test-install: foreign command not reported" >&2; exit 1; }
+[ "$("$T/h5/.local/bin/champollion")" = foreign ] || { echo "test-install: foreign command was overwritten" >&2; exit 1; }
+grep -q 'Health check: usage' "$T/h5.log" || { cat "$T/h5.log" >&2; echo "test-install: health result not printed" >&2; exit 1; }
+grep -q 'Health check: usage' "$T/h1.log" || { echo "test-install: health result not printed" >&2; exit 1; }
+grep -q champollion-installer-shim "$T/h1/.local/bin/champollion" || { echo "test-install: shim has no marker" >&2; exit 1; }
+echo "host shim marker ok"
+
 echo "== host: missing Python named =="
 mkdir -p "$T/nopy" "$T/h4"
 for tool in curl wget sha256sum shasum mktemp uname rm awk head cut mkdir cat chmod mv dirname basename sed grep; do
@@ -110,6 +121,27 @@ if ($out -notmatch 'Champollion \d+\.\d+') { throw 'no version printed' }
 & "$HOME/.local/bin/champollion" --help | Out-Null
 if ($LASTEXITCODE -ne 0) { throw 'installed shim failed' }
 & /test/www/good/install.ps1
+# Relative home and bin overrides (with a dot segment) are normalised; the fresh install must survive.
+New-Item -ItemType Directory -Path /tmp/rel -Force | Out-Null
+Push-Location /tmp/rel
+$env:CHAMPOLLION_RELEASE_BASE = "$env:TEST_BASE/good"
+$env:CHAMPOLLION_HOME = './x/../home'
+$env:CHAMPOLLION_BIN_DIR = './bin'
+& /test/www/good/install.ps1
+if (-not (Test-Path /tmp/rel/home/venv/bin/python)) { throw 'relative CHAMPOLLION_HOME: install was deleted or misplaced' }
+if (-not (Test-Path /tmp/rel/bin/champollion)) { throw 'relative CHAMPOLLION_BIN_DIR: shim missing' }
+& /test/www/good/install.ps1
+if (-not (Test-Path /tmp/rel/home/venv/bin/python)) { throw 'relative home: upgrade deleted the install' }
+# A command the installer did not write is left alone; its own shim is upgraded.
+Set-Content /tmp/rel/bin/champollion "#!/bin/sh`necho foreign`n"
+$out = & /test/www/good/install.ps1 *>&1 | Out-String
+if ($out -notmatch 'Left .* alone') { throw 'foreign command not reported' }
+if ((Get-Content /tmp/rel/bin/champollion -Raw) -notmatch 'foreign') { throw 'foreign command was overwritten' }
+if ($out -notmatch 'Health check: usage') { throw 'health result not printed' }
+Pop-Location
+Remove-Item Env:CHAMPOLLION_HOME, Env:CHAMPOLLION_BIN_DIR
+if (Get-Command Install-Champollion -ErrorAction SilentlyContinue) { throw 'installer function leaked into the session' }
+if (Select-String -Path "$HOME/.local/bin/champollion" -Pattern champollion-installer-shim -SimpleMatch -Quiet) {} else { throw 'shim has no marker' }
 $env:CHAMPOLLION_RELEASE_BASE = "$env:TEST_BASE/bad"
 $env:CHAMPOLLION_HOME = '/tmp/badhome'
 $refused = $false
