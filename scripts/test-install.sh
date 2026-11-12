@@ -68,6 +68,12 @@ grep -q 'Left .* alone' "$T/h5.log" || { cat "$T/h5.log" >&2; echo "test-install
 grep -q 'Health check: usage' "$T/h5.log" || { cat "$T/h5.log" >&2; echo "test-install: health result not printed" >&2; exit 1; }
 grep -q 'Health check: usage' "$T/h1.log" || { echo "test-install: health result not printed" >&2; exit 1; }
 grep -q champollion-installer-shim "$T/h1/.local/bin/champollion" || { echo "test-install: shim has no marker" >&2; exit 1; }
+# A 1.6.0-shaped shim (no marker) is ours and is replaced.
+mkdir -p "$T/h6/.local/bin"
+printf '#!/bin/sh\nexec "%s/.champollion/venv/bin/python" -m champollion "$@"\n' "$T/h6" > "$T/h6/.local/bin/champollion"; chmod 755 "$T/h6/.local/bin/champollion"
+HOME="$T/h6" CHAMPOLLION_RELEASE_BASE="$BASE/good" sh scripts/install.sh >"$T/h6.log" 2>&1 || { cat "$T/h6.log" >&2; exit 1; }
+! grep -q 'Left .* alone' "$T/h6.log" || { cat "$T/h6.log" >&2; echo "test-install: 1.6.0 shim treated as foreign" >&2; exit 1; }
+grep -q champollion-installer-shim "$T/h6/.local/bin/champollion" || { echo "test-install: 1.6.0 shim not upgraded" >&2; exit 1; }
 echo "host shim marker ok"
 
 echo "== host: missing Python named =="
@@ -138,6 +144,11 @@ $out = & /test/www/good/install.ps1 *>&1 | Out-String
 if ($out -notmatch 'Left .* alone') { throw 'foreign command not reported' }
 if ((Get-Content /tmp/rel/bin/champollion -Raw) -notmatch 'foreign') { throw 'foreign command was overwritten' }
 if ($out -notmatch 'Health check: usage') { throw 'health result not printed' }
+# A 1.6.0-shaped shim (no marker) is ours and is replaced.
+Set-Content /tmp/rel/bin/champollion "#!/bin/sh`nexec `"/tmp/rel/home/venv/bin/python`" -m champollion `"`$@`"`n"
+$out = & /test/www/good/install.ps1 *>&1 | Out-String
+if ($out -match 'Left .* alone') { throw '1.6.0 shim treated as foreign' }
+if (-not (Select-String -Path /tmp/rel/bin/champollion -Pattern champollion-installer-shim -SimpleMatch -Quiet)) { throw '1.6.0 shim not upgraded' }
 Pop-Location
 Remove-Item Env:CHAMPOLLION_HOME, Env:CHAMPOLLION_BIN_DIR
 if (Get-Command Install-Champollion -ErrorAction SilentlyContinue) { throw 'installer function leaked into the session' }

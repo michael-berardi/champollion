@@ -119,7 +119,11 @@ try {
     $finalPython = Join-Path $venv 'Scripts\python.exe'
     # Never overwrite a file this installer did not write.
     $ours = $true
-    if (Test-Path -LiteralPath $shim) { $ours = [bool](Select-String -LiteralPath $shim -Pattern $ShimMarker -SimpleMatch -Quiet) }
+    if (Test-Path -LiteralPath $shim) {
+      # The 1.6.0 shim had no marker; its exact shape is also ours and is upgraded.
+      $raw = [string](Get-Content -LiteralPath $shim -Raw)
+      $ours = $raw.Contains($ShimMarker) -or ($raw -match '^@echo off\r?\n"[^"]*\\venv\\Scripts\\python\.exe" -m champollion %\*\s*$')
+    }
     if ($ours) {
       if ($binDir.TrimEnd('\', '/') -ieq $defaultBin.TrimEnd('\', '/')) {
         # Inside the tool's own folder the shim is relative, so a non-ASCII profile name cannot break it.
@@ -157,7 +161,11 @@ try {
     $shim = Join-Path $binDir 'champollion'
     $finalPython = Join-Path $venv 'bin/python'
     $ours = $true
-    if (Test-Path -LiteralPath $shim) { $ours = [bool](Select-String -LiteralPath $shim -Pattern $ShimMarker -SimpleMatch -Quiet) }
+    if (Test-Path -LiteralPath $shim) {
+      # The 1.6.0 shim had no marker; its exact shape is also ours and is upgraded.
+      $raw = [string](Get-Content -LiteralPath $shim -Raw)
+      $ours = $raw.Contains($ShimMarker) -or ($raw -match '(?m)^exec "[^"]*/venv/bin/python" -m champollion "\$@"\s*$')
+    }
     if ($ours) {
       Set-Content -Path $shim -Value "#!/bin/sh`n# $ShimMarker`nexec `"$finalPython`" -m champollion `"`$@`"`n"
       & chmod 755 $shim

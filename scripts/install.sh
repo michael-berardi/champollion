@@ -7,7 +7,7 @@
 # under ~/.champollion. The package is pure Python standard library with no dependencies, so nothing else
 # is fetched. Uses the Python 3.9+ already on this machine; if none exists it says how to install one.
 # Environment: CHAMPOLLION_HOME (default ~/.champollion), CHAMPOLLION_BIN_DIR (default ~/.local/bin),
-# CHAMPOLLION_VERSION (default: latest, e.g. 1.6.1), CHAMPOLLION_RELEASE_BASE (override the download base URL, used by tests).
+# CHAMPOLLION_VERSION (default: latest, e.g. 1.6.2), CHAMPOLLION_RELEASE_BASE (override the download base URL, used by tests).
 set -eu
 
 REPO="your-github-username/champollion"
@@ -99,7 +99,9 @@ rm -rf "$VENV.old"
 # module through the venv interpreter instead, which is location-independent.
 # Never overwrite a file this installer did not write: only a file carrying the marker is ours.
 SHIM="$BIN_DIR/champollion"
-if [ -e "$SHIM" ] && ! grep -q 'champollion-installer-shim' "$SHIM" 2>/dev/null; then
+# The 1.6.0 shim had no marker; its exact shape (the exec line below) is also ours and is upgraded.
+if [ -e "$SHIM" ] && ! grep -q 'champollion-installer-shim' "$SHIM" 2>/dev/null \
+   && ! grep -qxF "exec \"$VENV/bin/python\" -m champollion \"\$@\"" "$SHIM" 2>/dev/null; then
   say "Left $SHIM alone: it exists and was not written by this installer. Run Champollion with: $VENV/bin/python -m champollion"
   SHIM="$VENV/bin/python -m champollion"
   HEALTH=$("$VENV/bin/python" -m champollion --help 2>&1) || die "the installed command does not run: $SHIM --help"

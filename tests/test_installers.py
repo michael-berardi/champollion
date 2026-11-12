@@ -50,6 +50,26 @@ class InstallPs1Static(unittest.TestCase):
         self.assertIn("Left $shim alone", self.code)
 
 
+class LegacyShim(unittest.TestCase):
+    """The 1.6.0 shims carried no marker; an upgrade must still recognise and replace them."""
+
+    def test_ps1_recognises_the_1_6_0_cmd_shape_only(self):
+        code = read("install.ps1")
+        pat = re.search(r"-match '(\^@echo off[^']*)'", code).group(1)
+        # PowerShell regex and Python regex agree on this subset.
+        rx = re.compile(pat)
+        old = '@echo off\r\n"C:\\Users\\Jos?\\AppData\\Local\\Champollion\\venv\\Scripts\\python.exe" -m champollion %*\r\n'
+        self.assertTrue(rx.search(old))
+        self.assertFalse(rx.search('@echo off\r\necho mine\r\n'))
+        self.assertFalse(rx.search('@echo off\r\n"C:\\x\\python.exe" -m champollion %*\r\n'))
+
+    def test_ps1_health_check_runs_through_the_shim_when_ours(self):
+        self.assertIn("if ($ours) { Invoke-Native $shim @('--help') }", read("install.ps1"))
+
+    def test_sh_accepts_the_1_6_0_exec_line(self):
+        self.assertIn('grep -qxF "exec \\"$VENV/bin/python\\" -m champollion', read("install.sh"))
+
+
 class InstallShStatic(unittest.TestCase):
     def test_shim_has_marker_and_foreign_file_guard(self):
         sh = read("install.sh")

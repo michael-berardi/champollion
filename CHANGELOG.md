@@ -4,6 +4,12 @@ Changes are recorded in [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
 Champollion enforces mechanical requirements and records judgement (VER-1). It does not translate or certify sense. The dated 1.0.0 entry records release contents, not approval to publish; SPEC.md remains a working specification until publication is approved.
 
+## [1.6.2] - 2026-11-11
+
+### Fixed
+
+- Both installers: an upgrade over a `champollion` command written by 1.6.0 (which had no marker line) told the user the command was not ours and left it in place, so a broken Windows command was never repaired. The exact 1.6.0 command is now recognised as the installer's own and replaced; any other file is still left alone. On Windows the final health check runs through the command the installer wrote.
+
 ## [1.6.1] - 2026-11-11
 
 ### Fixed
