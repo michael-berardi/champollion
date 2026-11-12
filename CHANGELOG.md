@@ -6,6 +6,13 @@ Champollion enforces mechanical requirements and records judgement (VER-1). It d
 
 ## [Unreleased]
 
+### Added
+
+- One-step installers: `scripts/install.sh` (macOS and Linux) and `scripts/install.ps1` (Windows PowerShell 5.1 and 7, also runs under PowerShell 7 on Linux for testing). They download the release wheel named in `SHA256SUMS`, verify its SHA-256 before installing anything, install it into a private venv under `~/.champollion` (`%LOCALAPPDATA%\Champollion` on Windows) using the Python 3.9+ already on the machine, and put the `champollion` command in `~/.local/bin` (on Windows in the install's `bin` folder, added to the user PATH). Re-running upgrades in place; no sudo, no shell-profile edits, no new runtime dependencies.
+- `scripts/build-release.sh` assembles the release assets into `dist/release/` (reproducible wheel and source archive from `scripts/build-release.py`, both installers with the release repository taken from the git remote, `SHA256SUMS` covering every asset except itself).
+- `scripts/test-install.sh` tests the installers against a short-lived local release server: on the host, in an `ubuntu:24.04` container, and under PowerShell 7 in the `mcr.microsoft.com/powershell` container (install, upgrade, version check, corrupted wheel refused, missing Python named).
+- README Install section leads with the two one-liners and notes that PDF export runs on macOS and Linux only (it controls headless Chrome through POSIX process groups); the checks, review, summary and EPUB export run on macOS, Linux and Windows.
+
 ## [1.5.0] - 2026-11-11
 
 ### Added

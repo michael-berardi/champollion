@@ -30,9 +30,29 @@ The [method guide](docs/method.md) explains each stage. The [protocol specificat
 
 ## Install
 
-Requires **Python 3.9 or later** and Git. The tools use Python's standard library and check local files without uploading your texts.
+One step on macOS or Linux:
 
-Use a new directory for the install and example below. On macOS or Linux:
+```sh
+curl -fsSL https://github.com/your-github-username/champollion/releases/latest/download/install.sh | sh
+```
+
+One step on Windows (PowerShell):
+
+```powershell
+irm https://github.com/your-github-username/champollion/releases/latest/download/install.ps1 | iex
+```
+
+Replace `your-github-username` in the commands and links on this page with this repository's GitHub owner, shown in its address bar. The installers attached to a release already name the owner.
+
+The installer downloads the release wheel, verifies its SHA-256 checksum before installing anything, and installs it into a private Python environment in `~/.champollion` (on Windows `%LOCALAPPDATA%\Champollion`). It puts the `champollion` command in `~/.local/bin` (on Windows in `%LOCALAPPDATA%\Champollion\bin`, added to your user PATH). It needs **Python 3.9 or later** already on the machine, plus curl or wget on macOS and Linux; if Python is missing it prints the one command that installs it and stops. The tools use Python's standard library and check local files without uploading your texts, so nothing else is downloaded. The installer never uses sudo and never edits shell profiles; when the bin folder is not on your PATH it prints the line to add.
+
+To update, run the same one-liner again; it upgrades in place. To remove, delete the `~/.champollion` folder and the `champollion` shim in `~/.local/bin` (on Windows delete `%LOCALAPPDATA%\Champollion`, which includes the shim, and remove its `bin` entry from your user PATH).
+
+Platforms: the checks, review, summary and EPUB export run on macOS, Linux and Windows. PDF export (`champollion export --format pdf`) controls headless Chrome through POSIX process groups and runs on macOS and Linux only.
+
+### Manual install
+
+Requires Python 3.9 or later and Git. Use a new directory for the install and example below. On macOS or Linux:
 
 ```sh
 python3 -m venv .venv
@@ -41,8 +61,6 @@ python3 -m pip install "champollion-protocol @ git+https://github.com/your-githu
 ```
 
 On Windows, create the environment with `py -3 -m venv .venv`, activate it with `.\.venv\Scripts\Activate.ps1`, then run the same install command using `python -m pip`.
-
-Replace `your-github-username` in the commands and links on this page with this repository's GitHub owner, shown in its address bar.
 
 Tagged releases also include a wheel, a source archive, and `SHA256SUMS` on the [releases page](https://github.com/your-github-username/champollion/releases).
 
