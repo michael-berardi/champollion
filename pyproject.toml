@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "champollion-protocol"
-version = "1.5.0"
+version = "1.6.0"
 description = "Translation protocol with offline mechanical checks and recorded judgement; does not translate or certify sense"
 readme = "README.md"
 license = "MIT AND CC-BY-4.0 AND CC0-1.0"
@@ -30,10 +30,10 @@ champollion = "champollion.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/your-github-username/champollion"
-Documentation = "https://github.com/your-github-username/champollion/blob/v1.5.0/SPEC.md"
+Documentation = "https://github.com/your-github-username/champollion/blob/v1.6.0/SPEC.md"
 Repository = "https://github.com/your-github-username/champollion"
 Issues = "https://github.com/your-github-username/champollion/issues"
-Changelog = "https://github.com/your-github-username/champollion/blob/v1.5.0/CHANGELOG.md"
+Changelog = "https://github.com/your-github-username/champollion/blob/v1.6.0/CHANGELOG.md"
 
 [tool.setuptools]
 package-dir = { "" = "src" }
