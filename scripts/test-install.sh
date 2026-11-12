@@ -125,12 +125,26 @@ try {
   if ($r) { $r | Format-Table -AutoSize | Out-String | Write-Host } else { Write-Host 'PSScriptAnalyzer: clean' }
 } catch { Write-Host "PSScriptAnalyzer skipped: $($_.Exception.Message)" }
 WIN
-echo "== windows script: PowerShell 7 container (Linux, amd64 emulation) =="
-# The pulled powershell:latest is 32-bit arm and cannot exec on arm64 Docker; use the amd64 ubuntu image under emulation.
-docker run --rm --name champollion-pwsh-test --platform linux/amd64 \
+# mcr.microsoft.com/powershell publishes no arm64 Linux image (amd64 and 32-bit arm only), so the
+# PowerShell 7 tests run in a small local image: ubuntu:24.04 plus Microsoft's official arm64/x64 tarball.
+PS_VERSION=7.4.6
+PWSH_IMAGE="pwsh-install-test:$PS_VERSION"
+if ! docker image inspect "$PWSH_IMAGE" >/dev/null 2>&1; then
+  echo "building $PWSH_IMAGE (ubuntu:24.04 plus the official PowerShell $PS_VERSION tarball)"
+  docker build -q -t "$PWSH_IMAGE" - >/dev/null <<DOCKERFILE || { echo "test-install: cannot build the PowerShell $PS_VERSION test image" >&2; exit 1; }
+FROM ubuntu:24.04
+RUN apt-get update -qq && apt-get install -y -qq ca-certificates curl libicu74 >/dev/null \\
+ && case "\$(uname -m)" in aarch64) a=arm64 ;; x86_64) a=x64 ;; *) echo "unsupported CPU \$(uname -m)" >&2; exit 1 ;; esac \\
+ && curl -fsSL --retry 3 -o /tmp/ps.tgz "https://github.com/PowerShell/PowerShell/releases/download/v$PS_VERSION/powershell-$PS_VERSION-linux-\$a.tar.gz" \\
+ && mkdir -p /opt/powershell && tar -xzf /tmp/ps.tgz -C /opt/powershell && chmod +x /opt/powershell/pwsh \\
+ && ln -s /opt/powershell/pwsh /usr/bin/pwsh && rm /tmp/ps.tgz
+DOCKERFILE
+fi
+echo "== windows script: PowerShell 7 container ($PWSH_IMAGE, Linux) =="
+docker run --rm --name champollion-pwsh-test \
   --add-host=host.docker.internal:host-gateway \
   -e TEST_BASE="http://host.docker.internal:$PORT" \
-  -v "$T:/test:ro" mcr.microsoft.com/powershell:7.5-ubuntu-24.04 pwsh -NoProfile -File /test/win.ps1
+  -v "$T:/test:ro" "$PWSH_IMAGE" pwsh -NoProfile -File /test/win.ps1
 
 kill "$SERVER_PID" 2>/dev/null || true
 wait "$SERVER_PID" 2>/dev/null || true
