@@ -13,7 +13,10 @@ command -v curl >/dev/null 2>&1 || { echo "test-install: needs curl" >&2; exit 1
 
 sh scripts/build-release.sh
 
-T=$(mktemp -d "${TMPDIR:-/tmp}/champollion-test.XXXXXX")
+# Stage under the repo's gitignored dist/: Docker (colima) shares the home folder but not $TMPDIR,
+# and the containers mount this folder read-only.
+mkdir -p dist
+T=$(mktemp -d "$(pwd)/dist/test.XXXXXX")
 SERVER_PID=""
 cleanup() {
   if [ -n "$SERVER_PID" ]; then kill "$SERVER_PID" 2>/dev/null || true; wait "$SERVER_PID" 2>/dev/null || true; fi
