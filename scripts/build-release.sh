@@ -34,6 +34,9 @@ cp "dist/$wheel" "dist/$sdist" "$OUT/"
 sed "s#your-github-username/champollion#$repo#g" scripts/install.sh > "$OUT/install.sh"
 sed "s#your-github-username/champollion#$repo#g" scripts/install.ps1 > "$OUT/install.ps1"
 chmod 755 "$OUT/install.sh" "$OUT/install.ps1"
+# The wheel build leaves a generated src/*.egg-info (gitignored, copies the pyproject author line into PKG-INFO).
+# Remove it so the tree is as clean as before the build and the repository's own tests still pass afterwards.
+rm -rf src/*.egg-info
 ( cd "$OUT" && if command -v sha256sum >/dev/null 2>&1; then sha256sum "$wheel" "$sdist" install.sh install.ps1; else shasum -a 256 "$wheel" "$sdist" install.sh install.ps1; fi > SHA256SUMS )
 echo "built $OUT for $repo"
 ls -l "$OUT"
