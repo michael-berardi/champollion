@@ -125,11 +125,12 @@ try {
   if ($r) { $r | Format-Table -AutoSize | Out-String | Write-Host } else { Write-Host 'PSScriptAnalyzer: clean' }
 } catch { Write-Host "PSScriptAnalyzer skipped: $($_.Exception.Message)" }
 WIN
-echo "== windows script: PowerShell 7 container (Linux) =="
-docker run --rm --name champollion-pwsh-test \
+echo "== windows script: PowerShell 7 container (Linux, amd64 emulation) =="
+# The pulled powershell:latest is 32-bit arm and cannot exec on arm64 Docker; use the amd64 ubuntu image under emulation.
+docker run --rm --name champollion-pwsh-test --platform linux/amd64 \
   --add-host=host.docker.internal:host-gateway \
   -e TEST_BASE="http://host.docker.internal:$PORT" \
-  -v "$T:/test:ro" mcr.microsoft.com/powershell pwsh -NoProfile -File /test/win.ps1
+  -v "$T:/test:ro" mcr.microsoft.com/powershell:7.5-ubuntu-24.04 pwsh -NoProfile -File /test/win.ps1
 
 kill "$SERVER_PID" 2>/dev/null || true
 wait "$SERVER_PID" 2>/dev/null || true
