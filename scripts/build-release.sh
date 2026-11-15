@@ -9,6 +9,13 @@
 set -eu
 cd "$(dirname "$0")/.."
 OUT="${1:-dist/release}"
+# Use $PYTHON when given; otherwise the first interpreter on PATH that has pip and setuptools,
+# so the build does not depend on which python3 happens to come first.
+if [ -z "${PYTHON:-}" ]; then
+  for candidate in python3 python3.14 python3.13 python3.12 python3.11; do
+    if command -v "$candidate" >/dev/null 2>&1 && "$candidate" -c 'import pip, setuptools' >/dev/null 2>&1; then PYTHON=$candidate; break; fi
+  done
+fi
 PYTHON="${PYTHON:-python3}"
 
 [ -z "$(git status --porcelain --untracked-files=no)" ] || { echo "build-release: the working tree has changes; build from a clean checkout" >&2; exit 1; }
