@@ -80,8 +80,18 @@ PERSONAL = re.compile(
     re.IGNORECASE,
 )
 # Documented exceptions: (relative file, text the line contains, why it stays).
-# Empty today: neutral placeholders read as well as the original handle.
+# No whole-line exceptions: a repository URL must not hide unrelated personal text.
 ALLOWED = ()
+# Only this repository identity is public metadata, not a personal preference.
+OWN_REPOSITORY = re.compile(
+    r"https://github\.com/michael-berardi/champollion(?:\.git)?"
+    r"(?=$|[/@#?\s\"\')])"
+)
+
+
+def without_repository(text):
+    return OWN_REPOSITORY.sub("repository", text)
+
 
 
 def load_private_terms(path=None):
@@ -139,7 +149,7 @@ def hits(pattern, include_tests=False):
     found = []
     for file, text in shipped(include_tests):
         for number, line in enumerate(text.splitlines(), 1):
-            if not pattern.search(line):
+            if not pattern.search(without_repository(line)):
                 continue
             if any(f == file and contains in line for f, contains, _ in ALLOWED):
                 continue
@@ -148,6 +158,19 @@ def hits(pattern, include_tests=False):
 
 
 class NeutralityTests(unittest.TestCase):
+    def test_only_own_repository_identity_is_allowed(self):
+        for suffix in ("", "/issues", ".git@v1.6.3", "/releases/latest/download/install.sh"):
+            self.assertNotRegex(without_repository(
+                "https://github.com/michael-berardi/champollion" + suffix), PERSONAL)
+        for text in (
+            "https://github.com/michael-berardi/other",
+            "https://github.com/michael-berardi/champollion-other",
+            "https://github.com/michael-berardi/champollion.evil",
+            "https://github.com/michael-berardi/champollion Michael",
+            "michael-berardi/champollion",
+        ):
+            self.assertRegex(without_repository(text), PERSONAL)
+
     def test_private_terms_loader(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "terms.txt"

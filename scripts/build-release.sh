@@ -14,7 +14,7 @@ PYTHON="${PYTHON:-python3}"
 [ -z "$(git status --porcelain --untracked-files=no)" ] || { echo "build-release: the working tree has changes; build from a clean checkout" >&2; exit 1; }
 "$PYTHON" -c 'import pip, setuptools' >/dev/null 2>&1 || { echo "build-release: $PYTHON lacks pip or setuptools>=77; run with an interpreter that has them, e.g. PYTHON=python3.14 scripts/build-release.sh" >&2; exit 1; }
 
-# The release repository comes from the git remote, so the checked-in installers stay owner-neutral.
+# The release repository comes from the git remote, allowing forks to build their own installers.
 url=$(git config --get remote.origin.url) || { echo "build-release: no git remote origin; cannot address the release downloads" >&2; exit 1; }
 repo=$(printf '%s\n' "$url" | sed -e 's#^https://github.com/##' -e 's#^git@github.com:##' -e 's#\.git$##')
 case "$repo" in
@@ -31,8 +31,8 @@ sdist=$(awk '$2 ~ /\.tar\.gz$/ { print $2 }' dist/SHA256SUMS)
 
 rm -rf "$OUT"; mkdir -p "$OUT"
 cp "dist/$wheel" "dist/$sdist" "$OUT/"
-sed "s#your-github-username/champollion#$repo#g" scripts/install.sh > "$OUT/install.sh"
-sed "s#your-github-username/champollion#$repo#g" scripts/install.ps1 > "$OUT/install.ps1"
+sed "s#https://github.com/michael-berardi/champollion#https://github.com/$repo#g" scripts/install.sh > "$OUT/install.sh"
+sed "s#https://github.com/michael-berardi/champollion#https://github.com/$repo#g" scripts/install.ps1 > "$OUT/install.ps1"
 chmod 755 "$OUT/install.sh" "$OUT/install.ps1"
 # The wheel build leaves a generated src/*.egg-info (gitignored, copies the pyproject author line into PKG-INFO).
 # Remove it so the tree is as clean as before the build and the repository's own tests still pass afterwards.

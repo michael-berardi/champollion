@@ -4,11 +4,39 @@ Champollion is a translation protocol and offline Python toolkit for editors and
 
 Profiles choose the languages, edition styles, and applicable checks. The included Latin-to-Spanish example shows two independent translations from one original. Passing mechanical checks does not establish translation quality or approve publication: that requires recorded editorial review.
 
+The method grew out of [Mouseia](https://mouseia.org), an open library that places original texts beside new translations.
+
 ## Install and try it
 
-Requires Python 3.9 or later. Download and unpack this repository, or clone it using its GitHub Code button. From the checkout, install into a virtual environment:
+Requires Python 3.9 or later. On macOS or Linux:
 
 ```sh
+curl -fsSL https://github.com/michael-berardi/champollion/releases/latest/download/install.sh | sh
+```
+
+On Windows (PowerShell):
+
+```powershell
+irm https://github.com/michael-berardi/champollion/releases/latest/download/install.ps1 | iex
+```
+
+The installer verifies the release wheel's SHA-256 and installs it in a private environment. It prints PATH instructions if needed; run it again to upgrade. The core toolkit has no runtime dependencies outside Python's standard library.
+
+### With pip
+
+In an activated virtual environment, with Git installed:
+
+```sh
+python3 -m pip install "champollion-protocol @ git+https://github.com/michael-berardi/champollion.git@v1.6.3"
+```
+
+On Windows use `python` instead of `python3`. Pip may download build tooling.
+
+### From source
+
+```sh
+git clone https://github.com/michael-berardi/champollion.git
+cd champollion
 python3 -m venv .venv
 . .venv/bin/activate
 python3 -m pip install .
@@ -18,9 +46,7 @@ champollion report --root examples/latin-to-spanish --json
 
 On Windows, create the environment with `py -3 -m venv .venv`, activate it with `.\.venv\Scripts\Activate.ps1`, and use `python` instead of `python3`.
 
-The core toolkit has no runtime dependencies outside Python's standard library. Installation needs setuptools; pip may download build tooling. The example has no mechanical errors, but its publication gate stays blocked because editorial review has not been recorded.
-
-For a packaged release, download its wheel and `SHA256SUMS` from this repository's Releases page. Verify the checksum, then install the wheel with `python -m pip install path/to/package.whl`. Release assets also include shell and PowerShell installers; use the assets attached to the release, which contain the repository address. The checked-in installer scripts contain an owner placeholder.
+The example has no mechanical errors, but its publication gate stays blocked because editorial review has not been recorded.
 
 ## Start a translation
 
@@ -74,3 +100,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for code and protocol changes.
 ## License
 
 Code is [MIT-licensed](LICENSE). The specification and documentation are [CC BY 4.0](LICENSE-docs). Source texts retain their own rights. See [THIRD-PARTY.md](THIRD-PARTY.md) and [SECURITY.md](SECURITY.md).
+
+---
+
+Part of [Pareto Cybernetics](https://paretocybernetics.com/projects/champollion/): free, private, open-source tools for working with AI agents.

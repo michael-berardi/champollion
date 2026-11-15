@@ -4,10 +4,10 @@ title: "Champollion protocol"
 authors:
   - family-names: Example
     given-names: Alex
-version: 1.4.0
-date-released: "2026-11-01"
-url: "https://github.com/your-github-username/champollion"
-repository-code: "https://github.com/your-github-username/champollion"
+version: 1.6.3
+date-released: "2026-11-15"
+url: "https://github.com/michael-berardi/champollion"
+repository-code: "https://github.com/michael-berardi/champollion"
 license: CC-BY-4.0
 keywords:
   - translation protocol

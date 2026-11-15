@@ -1,7 +1,5 @@
 # Champollion installer for Windows (PowerShell 5.1 and 7):
-#   irm https://github.com/your-github-username/champollion/releases/latest/download/install.ps1 | iex
-# (replace your-github-username with the repository owner; release copies built by scripts/build-release.sh
-#  already name the owner recorded in the git remote.)
+#   irm https://github.com/michael-berardi/champollion/releases/latest/download/install.ps1 | iex
 # Downloads the release wheel named in SHA256SUMS, checks its SHA-256, and installs it into a private venv
 # under %LOCALAPPDATA%\Champollion. The package is pure Python standard library with no dependencies, so
 # nothing else is fetched. Uses the Python 3.9+ already on this machine; if none exists it says how to get one.
@@ -12,14 +10,11 @@
 function Install-Champollion {
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'   # the progress bar makes downloads very slow on Windows PowerShell 5.1
-$Repo = 'your-github-username/champollion'
+$Repo = 'https://github.com/michael-berardi/champollion'
 $ShimMarker = 'champollion-installer-shim'
 $base = if ($env:CHAMPOLLION_RELEASE_BASE) { $env:CHAMPOLLION_RELEASE_BASE }
-        elseif ($env:CHAMPOLLION_VERSION) { "https://github.com/$Repo/releases/download/v$($env:CHAMPOLLION_VERSION.TrimStart('v'))" }
-        else { "https://github.com/$Repo/releases/latest/download" }
-if ($base -like '*your-github-username*') {
-  throw 'This install.ps1 has no release repository configured; use the install.ps1 attached to a GitHub release (built by scripts/build-release.sh), or set CHAMPOLLION_RELEASE_BASE.'
-}
+        elseif ($env:CHAMPOLLION_VERSION) { "$Repo/releases/download/v$($env:CHAMPOLLION_VERSION.TrimStart('v'))" }
+        else { "$Repo/releases/latest/download" }
 
 # Runs a native command with its output captured. Windows PowerShell 5.1 turns the first stderr line of a
 # captured native command into a terminating error under 'Stop', so this runs under 'Continue' and the

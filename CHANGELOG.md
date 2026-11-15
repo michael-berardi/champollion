@@ -4,6 +4,15 @@ Changes are recorded in [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
 Champollion enforces mechanical requirements and records judgement (VER-1). It does not translate or certify sense. The dated 1.0.0 entry records release contents, not approval to publish; SPEC.md remains a working specification until publication is approved.
 
+## [1.6.3] - 2026-11-15
+
+### Fixed
+
+- Vendor verification reports symlinked files without hashing their targets. An unreadable target no longer aborts the integrity report; symlinks still make the snapshot invalid.
+- Installation documentation starts with working release installers; installer defaults, package metadata, and documentation use the repository URL instead of an owner placeholder. Export requirements correctly include Chrome for EPUB covers and POSIX process handling for both formats.
+- Corrected the contributing guide's changelog path and refreshed package citation metadata.
+- Migration: re-vendor and verify the new snapshot before adoption. No protocol, profile, CLI flag, or report-field changes.
+
 ## [1.6.2] - 2026-11-11
 
 ### Fixed

@@ -1,23 +1,21 @@
 #!/bin/sh
 # Champollion installer for macOS and Linux:
-#   curl -fsSL https://github.com/your-github-username/champollion/releases/latest/download/install.sh | sh
-# (replace your-github-username with the repository owner; release copies built by scripts/build-release.sh
-#  already name the owner recorded in the git remote.)
+#   curl -fsSL https://github.com/michael-berardi/champollion/releases/latest/download/install.sh | sh
 # Downloads the release wheel named in SHA256SUMS, checks its SHA-256, and installs it into a private venv
 # under ~/.champollion. The package is pure Python standard library with no dependencies, so nothing else
 # is fetched. Uses the Python 3.9+ already on this machine; if none exists it says how to install one.
 # Environment: CHAMPOLLION_HOME (default ~/.champollion), CHAMPOLLION_BIN_DIR (default ~/.local/bin),
-# CHAMPOLLION_VERSION (default: latest, e.g. 1.6.2), CHAMPOLLION_RELEASE_BASE (override the download base URL, used by tests).
+# CHAMPOLLION_VERSION (default: latest, e.g. 1.6.3), CHAMPOLLION_RELEASE_BASE (override the download base URL, used by tests).
 set -eu
 
-REPO="your-github-username/champollion"
+REPO="https://github.com/michael-berardi/champollion"
 HOME_DIR="${CHAMPOLLION_HOME:-$HOME/.champollion}"
 case "$HOME_DIR" in /*) ;; *) HOME_DIR="$(pwd)/$HOME_DIR" ;; esac
 BIN_DIR="${CHAMPOLLION_BIN_DIR:-$HOME/.local/bin}"
 case "$BIN_DIR" in /*) ;; *) BIN_DIR="$(pwd)/$BIN_DIR" ;; esac
 if [ -n "${CHAMPOLLION_RELEASE_BASE:-}" ]; then BASE="$CHAMPOLLION_RELEASE_BASE"
-elif [ -n "${CHAMPOLLION_VERSION:-}" ]; then BASE="https://github.com/$REPO/releases/download/v${CHAMPOLLION_VERSION#v}"
-else BASE="https://github.com/$REPO/releases/latest/download"; fi
+elif [ -n "${CHAMPOLLION_VERSION:-}" ]; then BASE="$REPO/releases/download/v${CHAMPOLLION_VERSION#v}"
+else BASE="$REPO/releases/latest/download"; fi
 
 say() { printf '%s\n' "$*"; }
 die() { printf 'champollion install: %s\n' "$*" >&2; exit 1; }
@@ -37,7 +35,6 @@ trap 'rm -rf "$TMP"; [ -z "$STAGE" ] || rm -rf "$STAGE"' EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
-case "$BASE" in *your-github-username*) die "this install.sh has no release repository configured; use the install.sh attached to a GitHub release (built by scripts/build-release.sh), or set CHAMPOLLION_RELEASE_BASE" ;; esac
 
 # expect <file> <name> <sums-file>: the file's SHA-256 must equal the line for <name> in the sums file.
 expect() {

@@ -15,6 +15,17 @@ def read(name):
         return f.read()
 
 
+class InstallerRepository(unittest.TestCase):
+    def test_defaults_address_the_public_release(self):
+        url = "https://github.com/michael-berardi/champollion"
+        self.assertIn('REPO="' + url + '"', read("install.sh"))
+        self.assertIn("$Repo = '" + url + "'", read("install.ps1"))
+        for name in ("install.sh", "install.ps1", "build-release.sh"):
+            self.assertNotIn("your-github-username", read(name))
+        self.assertIn('$REPO/releases/latest/download', read("install.sh"))
+        self.assertIn('$Repo/releases/latest/download', read("install.ps1"))
+
+
 class InstallPs1Static(unittest.TestCase):
     def setUp(self):
         self.ps1 = read("install.ps1")

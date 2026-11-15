@@ -46,4 +46,4 @@ There is no Champollion license fee, hosted-service subscription, or required tr
 
 ## Who maintains it?
 
-The protocol is maintained by its contributors. Report reproducible defects in the [repository issue tracker](https://github.com/your-github-username/champollion/issues); include the work, unit, code, text, and profile so a false positive can become a fixture. There is no guaranteed response time. Projects maintain their corpus, profiles, pinned snapshots, and judgment records; see [CONTRIBUTING.md](../CONTRIBUTING.md).
+The protocol is maintained by its contributors. Report reproducible defects in the [repository issue tracker](https://github.com/michael-berardi/champollion/issues); include the work, unit, code, text, and profile so a false positive can become a fixture. There is no guaranteed response time. Projects maintain their corpus, profiles, pinned snapshots, and judgment records; see [CONTRIBUTING.md](../CONTRIBUTING.md).
