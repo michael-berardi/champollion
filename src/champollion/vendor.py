@@ -95,7 +95,8 @@ def verify_vendor(directory: str = ".") -> dict:
         missing = sorted(set(expected) - set(actual))
         extra = sorted(set(actual) - set(expected))
         mismatches = sorted(name for name in set(expected) & set(actual)
-                            if hashlib.sha256(actual[name].read_bytes()).hexdigest() != expected[name])
+                            if not actual[name].is_symlink()
+                            and hashlib.sha256(actual[name].read_bytes()).hexdigest() != expected[name])
         symlinks = sorted(p.relative_to(destination).as_posix() for p in destination.rglob("*") if p.is_symlink())
     except OSError as exc:
         raise ChampollionError(f"{destination}: {exc}", cause="IO") from exc

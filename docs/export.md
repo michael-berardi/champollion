@@ -1,6 +1,6 @@
 # Exporting books
 
-`champollion export` typesets a work as a printed-quality **PDF** and a **Kindle-ready EPUB**, one book per edition: the original, and each register (Musean, Plain English, Historical in the `mouseia` profile). It reads the same work file the checks read and uses only the standard library, plus one external engine for PDF.
+`champollion export` typesets a work as a printed-quality **PDF** and a **Kindle-ready EPUB**, one book per edition: the original, and each register (Musean, Plain English, Historical in the `mouseia` profile). It reads the same work file the checks read and uses the standard library plus Chrome or Chromium for both formats. PDF also needs Poppler. Both CLI export paths use POSIX process-group handling; use macOS or Linux.
 
 ```sh
 champollion export works/analects.md --out books/ \
@@ -14,7 +14,7 @@ Without `--edition` every edition present in the file is exported; without `--fo
 
 | Output | Needs |
 | --- | --- |
-| EPUB | nothing beyond Python 3.9+ (the cover is rendered by Chrome; the `images` extra, `Pillow`, makes it a JPEG) |
+| EPUB | Python 3.9+ and Chrome or Chromium for the cover; the optional `images` extra (`Pillow`) makes it a JPEG |
 | PDF | Chrome or Chromium (`--chrome`, `$CHAMPOLLION_CHROME`, or a standard install path) and `pdftotext`/`pdfinfo` from poppler, which place the page numbers in the contents |
 | Embedded woff2 fonts in EPUB | the `fonts` extra (`fonttools` and `brotli`), to convert a `woff2` to a font EPUB readers accept |
 

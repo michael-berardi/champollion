@@ -1,142 +1,76 @@
 # Champollion
 
-Champollion is an open-source method for translating complete works directly from their original texts. It gives contributors a process to follow and tools to check their work before publication.
+Champollion is a translation protocol and offline Python toolkit for editors and translators working on complete texts. Keep the original, independent translations, source evidence, and review records together. Check structure and provenance before publication without uploading your texts or calling a model.
 
-The method grew out of [Mouseia](https://mouseia.org), an open library that places original texts beside new translations. Champollion makes that method available to other projects, with contributor guides and an offline Python toolkit. You can use it with human translators, AI systems, or both, in any language pair.
+Profiles choose the languages, edition styles, and applicable checks. The included Latin-to-Spanish example shows two independent translations from one original. Passing mechanical checks does not establish translation quality or approve publication: that requires recorded editorial review.
 
-## Two translations from the same original
+## Install and try it
 
-Mouseia publishes two complete English editions:
-
-- **Musean:** a literary translation in modern English, preserving the original's imagery, symbolism, rhythm, and structure.
-- **Plain English:** an independent translation in everyday language, preserving the same complete content in familiar words and direct sentences.
-
-Each is made from the original. Plain English is not produced by simplifying the Musean edition. Both preserve the source's divisions and references, so readers can compare the same passage across editions.
-
-Other projects can define their own translation styles and target languages. Champollion keeps those choices in a **profile**, a settings file that names the required editions and selects the appropriate checks.
-
-## How a work is made
-
-1. **Choose the complete work.** Identify its boundaries and the edition you will use. If only part survives, include the complete surviving text and state what is lost.
-2. **Preserve the original.** Save the provider's unchanged file and identify its revision. Record a content hash, a checksum that detects later changes, and the rights to both the work and its transcription. Document any cleanup, other copies used to repair damaged text, and aids you consult.
-3. **Keep the source's structure.** Divide it into matching sections. Preserve meaningful lines, stanzas, paragraphs, and reference numbers.
-4. **Translate independently.** Make each edition directly from the original. Give collaborators separate tasks for each edition, without showing them the other's translation.
-5. **Run the checks.** Fix structural errors and investigate passages flagged for missing content, copied wording, or text corruption.
-6. **Review against the source.** Compare each section's opening and ending. Check meaning, names, numbers, and technical terms. Read a sample aloud in each edition, then record the reviewer, findings, and corrections. The optional `champollion review` commands extend this to every passage: reviewer packets, an independent second reading, and guarded application of only confirmed corrections. See [review](docs/review.md).
-7. **Publish with the evidence.** Keep the source, translator credits, and review records with the work. Resolve blocking findings before publishing.
-8. **Summarise (optional).** Write a complete study guide to the work: what it says or narrates unit by unit, its key ideas, figures, terms and passages, plus a machine index that links it to related works. `champollion summary check` keeps it in step with the edition. See [summaries](docs/summaries.md).
-
-The [method guide](docs/method.md) explains each stage. The [protocol specification](SPEC.md) defines the full requirements.
-
-## Install
-
-One step on macOS or Linux:
-
-```sh
-curl -fsSL https://github.com/your-github-username/champollion/releases/latest/download/install.sh | sh
-```
-
-One step on Windows (PowerShell):
-
-```powershell
-irm https://github.com/your-github-username/champollion/releases/latest/download/install.ps1 | iex
-```
-
-Replace `your-github-username` in the commands and links on this page with this repository's GitHub owner, shown in its address bar. The installers attached to a release already name the owner.
-
-The installer downloads the release wheel, verifies its SHA-256 checksum before installing anything, and installs it into a private Python environment in `~/.champollion` (on Windows `%LOCALAPPDATA%\Champollion`). It puts the `champollion` command in `~/.local/bin` (on Windows in `%LOCALAPPDATA%\Champollion\bin`, added to your user PATH). It needs **Python 3.9 or later** already on the machine, plus curl or wget on macOS and Linux; if Python is missing it prints the one command that installs it and stops. The tools use Python's standard library and check local files without uploading your texts, so nothing else is downloaded. The installer never uses sudo and never edits shell profiles; when the bin folder is not on your PATH it prints the line to add.
-
-To update, run the same one-liner again; it upgrades in place. To remove, delete the `~/.champollion` folder and the `champollion` shim in `~/.local/bin` (on Windows delete `%LOCALAPPDATA%\Champollion`, which includes the shim, and remove its `bin` entry from your user PATH).
-
-Platforms: the checks, review, summary and EPUB export run on macOS, Linux and Windows. PDF export (`champollion export --format pdf`) controls headless Chrome through POSIX process groups and runs on macOS and Linux only.
-
-### Manual install
-
-Requires Python 3.9 or later and Git. Use a new directory for the install and example below. On macOS or Linux:
+Requires Python 3.9 or later. Download and unpack this repository, or clone it using its GitHub Code button. From the checkout, install into a virtual environment:
 
 ```sh
 python3 -m venv .venv
 . .venv/bin/activate
-python3 -m pip install "champollion-protocol @ git+https://github.com/your-github-username/champollion.git@v1.6.2"
+python3 -m pip install .
+champollion check --root examples/latin-to-spanish
+champollion report --root examples/latin-to-spanish --json
 ```
 
-On Windows, create the environment with `py -3 -m venv .venv`, activate it with `.\.venv\Scripts\Activate.ps1`, then run the same install command using `python -m pip`.
+On Windows, create the environment with `py -3 -m venv .venv`, activate it with `.\.venv\Scripts\Activate.ps1`, and use `python` instead of `python3`.
 
-Tagged releases also include a wheel, a source archive, and `SHA256SUMS` on the [releases page](https://github.com/your-github-username/champollion/releases).
+The core toolkit has no runtime dependencies outside Python's standard library. Installation needs setuptools; pip may download build tooling. The example has no mechanical errors, but its publication gate stays blocked because editorial review has not been recorded.
 
-## Try a complete example
+For a packaged release, download its wheel and `SHA256SUMS` from this repository's Releases page. Verify the checksum, then install the wheel with `python -m pip install path/to/package.whl`. Release assets also include shell and PowerShell installers; use the assets attached to the release, which contain the repository address. The checked-in installer scripts contain an owner placeholder.
 
-After installing, download the example and run its checks:
-
-```sh
-git clone --branch v1.6.2 --depth 1 https://github.com/your-github-username/champollion.git
-champollion check --root champollion/examples/latin-to-spanish
-champollion report --root champollion/examples/latin-to-spanish --json
-```
-
-The example contains a complete Latin micro-fable written for the project, its stored source, and two Spanish drafts. It demonstrates the file format and checks. The report keeps publication blocked because editorial review has not been recorded.
-
-## Start your own translation
-
-Create a project:
+## Start a translation
 
 ```sh
 champollion init my-translation
+champollion profile validate my-translation/profiles/generic.json
 ```
 
-This creates `works/`, a source manifest, and a local profile at `profiles/generic.json`. The project configuration, `champollion.json`, points to that profile.
-
-Follow the [first-work guide](docs/authoring.md) to add your source evidence and complete translations. Edit the local profile to choose your languages and edition styles. The starting profile uses Literal and Plain; the supplied Mouseia profile uses Musean and Plain English.
-
-Once the work and its records are ready:
+This creates `works/`, a source manifest, and `champollion.json` pointing to a local profile. Edit that profile to select languages and editions. Follow the [first-work guide](docs/authoring.md) to add a source snapshot, its rights and revision, and complete translations made independently from the original.
 
 ```sh
 champollion check --root my-translation
 champollion report --root my-translation --json
 ```
 
-The toolkit also prepares source-only tasks for collaborators, assembles returned sections into a separate work copy, and creates a hash-verified copy of the tools for offline project builds. Run `champollion --help` for the commands, or see [working with collaborators](docs/ai-workers.md) and [adopting Champollion](docs/adopting.md).
+Keep meaningful source divisions, lines, and reference numbers. Review each edition against the source, resolve findings, and retain reviewer records with the work. The [method guide](docs/method.md) explains the workflow; [SPEC.md](SPEC.md) defines the protocol.
 
-## Checks and review
-
-The checker looks for:
+## What the tools check
 
 - Missing editions, mismatched section headings, and changed reference numbers.
-- Missing source files, incorrect hashes, and incomplete required source records.
-- Sections that are unusually short compared with the rest of the work.
-- Identical sentences across editions, using the profile's overlap threshold.
-- Scan debris, quotation problems, and selected spelling or name inconsistencies.
+- Missing source files, incorrect hashes, and incomplete source records.
+- Unusually short sections and identical sentences across editions.
+- Scan debris, quotation problems, and profile-selected spelling or name inconsistencies.
 
-Language-specific checks apply only where the profile selects them. Reports identify checks that are disabled, unsupported, or lack enough evidence to run. `check` leaves your work documents unchanged.
+Reports distinguish disabled, unsupported, and insufficient-evidence checks. `check` does not change work documents. Exit codes are `0` for no errors, `1` for reported errors, and `2` for usage, configuration, or file problems. Warnings remain visible; `--strict` makes warnings fail too. A blocked publication gate is separate from these exit codes.
 
-A reviewer still needs to assess meaning, completeness, and fidelity to the source. The report separates file checks from recorded editorial review; passing the checks alone does not approve a translation for publication. See [verification](docs/verification.md) for the procedure and [provenance](docs/provenance.md) for the records to keep.
+The toolkit also prepares source-only collaborator tasks, assembles returned sections into a separate work copy, and makes hash-verified tool snapshots for offline builds. Run `champollion --help` for the command list.
 
-Use `report --json` to get a structured report for scripts. Exit codes are `0` for no errors, `1` for reported errors, and `2` when the command cannot run because of a usage, configuration, or file problem. Warnings remain visible; `--strict` makes them fail the check too.
+## Review, summaries, and books
 
-## Publish the editions as books
+- [Collaborator tasks](docs/ai-workers.md): keep independent editions separate.
+- [Source-language review](docs/review.md): reviewer packets, second readings, and guarded application of confirmed corrections. Files only; no model API calls.
+- [Study guides](docs/summaries.md): check a summary and machine index against the edition.
+- [Book export](docs/export.md): PDF and EPUB editions, with optional `--inline-emphasis` for source italics and bold.
 
-`champollion export` typesets every edition of a work as a PDF and a Kindle-ready EPUB, from the same files the checks read. Add `--inline-emphasis` to preserve source emphasis recorded as `*italics*` and `**bold**`; existing editions keep literal asterisks by default. See [docs/export.md](docs/export.md).
+Checks, review, and summary tools support macOS, Linux, and Windows. The export CLI requires Chrome or Chromium for both formats, including EPUB covers; PDF additionally needs Poppler. Both export paths use POSIX process-group handling, so use macOS or Linux for export.
 
-```sh
-champollion export works/analects.md --out books/ --publisher "My Press"
-```
+## Reference and contributing
 
-## Contribute
+See [verification](docs/verification.md), [provenance](docs/provenance.md), [adoption and vendoring](docs/adopting.md), and the [migration policy](docs/migration-policy.md).
 
-Use the [issue tracker](https://github.com/your-github-username/champollion/issues) to report a bug, a false positive, or a proposed improvement to the method. Include the command, profile, and a small example you have permission to share.
-
-Changes to a check should include a test that reproduces the problem and a passing example. Run the test suite from a checkout:
+Report bugs through this repository's Issues tab with the command, profile, and a small example you can share. Changes to a check need a reproducing test and a passing counterpart. From a checkout:
 
 ```sh
 make test
+make lint
 ```
 
-[CONTRIBUTING.md](CONTRIBUTING.md) covers code and protocol changes. The [migration policy](docs/migration-policy.md) explains how to update a project's pinned tools and rules.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for code and protocol changes.
 
 ## License
 
-Code is [MIT-licensed](LICENSE). The specification and documentation are [CC BY 4.0](LICENSE-docs). Source texts retain their own rights; using Champollion does not change them. See [THIRD-PARTY.md](THIRD-PARTY.md) for notices and [SECURITY.md](SECURITY.md) for security reports.
-
----
-
-Part of [Pareto Cybernetics](https://paretocybernetics.com/projects/champollion/): free, private, open-source tools for working with AI agents.
+Code is [MIT-licensed](LICENSE). The specification and documentation are [CC BY 4.0](LICENSE-docs). Source texts retain their own rights. See [THIRD-PARTY.md](THIRD-PARTY.md) and [SECURITY.md](SECURITY.md).

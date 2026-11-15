@@ -9,6 +9,7 @@ import re
 import subprocess
 import sys
 import unittest
+from unittest.mock import patch
 
 sys.dont_write_bytecode = True
 
@@ -353,6 +354,31 @@ class SourceVendorTests(CliCase):
         report = verify_vendor(str(destination))
         self.assertFalse(report['valid'])
         self.assertIn('link.py', report['symlinks'])
+
+    def test_vendor_does_not_read_symlink_targets(self):
+        destination = Path(self.temp.name) / 'vendor'
+        result = vendor(str(destination), today=TODAY)
+        package = Path(result['directory'])
+        target = package / 'findings.py'
+        content = target.read_bytes()
+        target.unlink()
+        witness = self.root / 'witness.py'
+        witness.write_bytes(content)
+        target.symlink_to(witness)
+        read_bytes = Path.read_bytes
+
+        def guarded_read(path):
+            if path.is_symlink():
+                raise PermissionError('symlink target must not be read')
+            return read_bytes(path)
+
+        with patch.object(Path, 'read_bytes', guarded_read):
+            report = verify_vendor(str(destination))
+        self.assertFalse(report['valid'])
+        self.assertIn('findings.py', report['symlinks'])
+        target.unlink()
+        target.write_bytes(content)
+        self.assertTrue(verify_vendor(str(destination))['valid'])
 
     def test_cli_vendor_and_refuse_existing_destination(self):
         destination = Path(self.temp.name) / 'cli-vendor'

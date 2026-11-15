@@ -4,7 +4,7 @@ Start with a reproducible defect and the smallest fixture that exposes it. Champ
 
 ## Propose a rule
 
-A new rule arrives with a **failing fixture reproducing a real defect, a rule ID, and an entry in `docs/CHANGELOG.md`**. Explain the defect, the intended requirement, the profile setting, the stable finding code, and which part is mechanical versus judgment. Cite the evidence for a historical defect; do not invent an audit case.
+A new rule arrives with a **failing fixture reproducing a real defect, a rule ID, and an entry in `CHANGELOG.md`**. Explain the defect, the intended requirement, the profile setting, the stable finding code, and which part is mechanical versus judgment. Cite the evidence for a historical defect; do not invent an audit case.
 
 Use the fixed SRC, SEG, REG, VER, PRV, and WRK families. Clarify an existing meaning under its existing ID; a changed meaning needs a new ID and retirement of the old one. Do not reuse IDs or silently enable a new gate in an adopted profile. Include migration and rollback consequences; incompatible accepted-input or publication changes require a major version.
 
