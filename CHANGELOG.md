@@ -4,6 +4,26 @@ Changes are recorded in [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
 Champollion enforces mechanical requirements and records judgement (VER-1). It does not translate or certify sense. The dated 1.0.0 entry records release contents, not approval to publish; SPEC.md remains a working specification until publication is approved.
 
+## [1.7.0] - 2026-11-16
+
+### Added
+
+- Summary sidecars: optional `basis.unit_sha256` (one hash per unit). When a unit's text changes, `summary check` names the changed units (`SUM-STALE ... units 3, 7 changed`), so only those need re-review. `summary units` prints each unit's `sha256`.
+- Summary sidecars: optional `summary.blurb`, one or two complete sentences for search results and link previews (at most 160 characters, 80 when mostly CJK). It is part of the `summary schema` output, not required.
+- Summary sidecars: optional operator-stamped `lang`, `model` and `edition_source_sha256`. `summary check --lang LANG` requires a matching `lang`; a stamped source hash is compared with the edition's `source_sha256`.
+- `SUM-TRUNCATED`: a reader-facing field that ends with an ellipsis, comma, semicolon, colon or dash, or a gist, overview, context, blurb, idea explanation or unit summary that does not end a sentence. A quotation ending in an ellipsis inside closing quotes is accepted.
+- `champollion.summary` exports the rules a generator needs to satisfy the gate: `word_count`, `ending_problem`, `blurb_limit`, `passage_in`, `passage_key`, `clean_quote`, `quote_markup`.
+
+### Changed
+
+- Word limits are CJK-aware: ideographs count as 10/17 of a word each (rounded up) plus the remaining letter or digit tokens. Chinese summaries were previously counted as one word per run of text.
+- Verbatim passages are compared with numbering, reference markers and emphasis marks set aside, so a verse edition with numbered lines can be quoted. A stored passage that itself contains such markup is refused (`SUM-PASSAGE ... contains markup`). A Latin-script passage must start and end on word boundaries.
+- A key idea with no units is reported as a `SUM-XREF` warning.
+
+### Migration
+
+- All new fields are optional; existing `champollion-summary/1` sidecars keep their meaning. Re-vendor to adopt. The stricter checks can fail existing sidecars that end mid-sentence or quote text with emphasis marks: repair those fields before enabling the new snapshot in a build gate.
+
 ## [1.6.3] - 2026-11-15
 
 ### Fixed

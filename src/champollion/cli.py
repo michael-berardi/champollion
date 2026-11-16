@@ -103,6 +103,7 @@ def _parser() -> argparse.ArgumentParser:
     sc.add_argument("--dir", default="summaries")
     sc.add_argument("--works-glob")
     sc.add_argument("--require", action="store_true")
+    sc.add_argument("--lang")
     _json_flag(sc)
     summary.add_parser("schema")
     vendor = commands.add_parser("vendor")
@@ -279,8 +280,8 @@ def _summary(args: argparse.Namespace) -> int:
         units = section_units(work, args.register, profile)
         digest = basis_hash(_section(work, args.register, profile))
         result = {"work": work.front.get("slug") or Path(work.path).stem, "register": args.register,
-                  "sha256": digest, "units": [{"n": n, "label": label, "chars": len(text)} for n,label,text in units]}
-        _emit(result, args.json, "\n".join([f"sha256: {digest}"] + [f"{n} {label} ({len(text)} chars)" for n,label,text in units]))
+                  "sha256": digest, "units": [{"n": n, "label": label, "chars": len(text), "sha256": basis_hash(text)} for n,label,text in units]}
+        _emit(result, args.json, "\n".join([f"sha256: {digest}"] + [f"{n} {label} ({len(text)} chars) sha256: {basis_hash(text)}" for n,label,text in units]))
         return 0
     root = Path(args.root).resolve()
     profile = _profile(root, args.profile)
@@ -324,7 +325,7 @@ def _summary(args: argparse.Namespace) -> int:
         except (ValueError, UnicodeError) as exc:
             findings.append(Finding("SUM-SCHEMA", "SUM-SCHEMA", "error", f"{path}: invalid JSON: {exc}", work=wid))
             continue
-        findings.extend(validate(obj, work, profile, ids))
+        findings.extend(validate(obj, work, profile, ids, lang=args.lang))
     result = {"findings": findings_json(findings), "counts": {"errors": sum(f.severity == "error" for f in findings), "warnings": sum(f.severity == "warn" for f in findings)}}
     _emit(result, args.json, "\n".join(format_finding(f) for f in findings) or "summary checks passed")
     return int(bool(result["counts"]["errors"]))

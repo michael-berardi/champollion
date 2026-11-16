@@ -372,3 +372,13 @@ The optional `champollion-summary/1` sidecar binds a complete study guide and
 machine index to a named edition and its SHA-256. See [summaries](docs/summaries.md)
 for fields, unit splitting, checks and review workflow. Summary checks do not
 change the existing protocol gates or certify meaning.
+
+### Summary sidecars: optional 1.7 additions
+
+`champollion-summary/1` also permits operator-stamped `lang`, `model`, and
+`edition_source_sha256`, and ordered `basis.unit_sha256` hashes. Unit hashes
+allow only changed units to be re-reviewed. `summary.blurb` is an optional
+nonempty search preview of one or two complete sentences, at most 160
+characters (80 for mostly CJK). The validator uses CJK-aware word counts,
+reports cut-off text as `SUM-TRUNCATED`, and compares clean passages against
+text with markup and numbered line prefixes ignored. See docs/summaries.md.

@@ -24,7 +24,7 @@
       {
         "id": "one",
         "title": "Idea",
-        "explanation": "Explanation",
+        "explanation": "Explanation.",
         "units": [
           1
         ]
@@ -32,7 +32,7 @@
       {
         "id": "two",
         "title": "Idea",
-        "explanation": "Explanation",
+        "explanation": "Explanation.",
         "units": [
           1
         ]
@@ -40,7 +40,7 @@
       {
         "id": "three",
         "title": "Idea",
-        "explanation": "Explanation",
+        "explanation": "Explanation.",
         "units": [
           1
         ]
@@ -50,7 +50,7 @@
       {
         "n": 1,
         "label": "",
-        "summary": "A summary",
+        "summary": "A summary.",
         "ideas": [
           "one",
           "two",
@@ -60,13 +60,13 @@
       {
         "n": 2,
         "label": "First",
-        "summary": "A summary",
+        "summary": "A summary.",
         "ideas": []
       },
       {
         "n": 3,
         "label": "Second",
-        "summary": "A summary",
+        "summary": "A summary.",
         "ideas": []
       }
     ],

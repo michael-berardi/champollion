@@ -22,8 +22,8 @@ class SummaryTests(unittest.TestCase):
             'basis':{'register':'plain','sha256':basis_hash(_section(self.work,'plain',self.profile)),'units':3},
             'aid':'Machine assisted','generated':'2026-01-01','review':{'status':'reviewed','by':'Reviewer','date':'2026-01-01','notes':'Checked'},
             'summary':{'gist':'A gist.','overview':'An overview.','context':'A context.','key_facts':{},
-                       'key_ideas':[{'id':i,'title':'Idea','explanation':'Explanation','units':[1]} for i in ('one','two','three')],
-                       'units':[{'n':n,'label':label,'summary':'A summary','ideas':['one','two','three'] if n == 1 else []} for n,label,_ in section_units(self.work,'plain',self.profile)],
+                       'key_ideas':[{'id':i,'title':'Idea','explanation':'Explanation.','units':[1]} for i in ('one','two','three')],
+                       'units':[{'n':n,'label':label,'summary':'A summary.','ideas':['one','two','three'] if n == 1 else []} for n,label,_ in section_units(self.work,'plain',self.profile)],
                        'figures':[],'terms':[],'passages':[{'unit':2,'text':'A "quoted" passage - here.','why':'Important.'}]},
             'index':{'genres':['story'],'forms':['prose'],'themes':['one','two','three'],'concepts':[], 'people':[], 'places':[], 'period':'Unknown','keywords':[],'related':[]}}
     def codes(self): return {f.code for f in validate(self.obj,self.work,self.profile,{'example','other'})}

@@ -27,7 +27,7 @@ The installer verifies the release wheel's SHA-256 and installs it in a private 
 In an activated virtual environment, with Git installed:
 
 ```sh
-python3 -m pip install "champollion-protocol @ git+https://github.com/michael-berardi/champollion.git@v1.6.3"
+python3 -m pip install "champollion-protocol @ git+https://github.com/michael-berardi/champollion.git@v1.7.0"
 ```
 
 On Windows use `python` instead of `python3`. Pip may download build tooling.

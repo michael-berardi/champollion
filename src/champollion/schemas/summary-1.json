@@ -209,6 +209,10 @@
           },
           "minItems": 0,
           "maxItems": 10
+        },
+        "blurb": {
+          "type": "string",
+          "minLength": 1
         }
       },
       "required": [

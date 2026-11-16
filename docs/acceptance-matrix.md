@@ -105,3 +105,9 @@ Store reviewer, date, protocol version, work/units/registers, findings and resol
 Current evidence binds `work_sha256`, `source_sha256`, and `profile_fingerprint`.
 A draft without that review can pass mechanical checks while publication remains
 blocked. No test fabricates a real read-aloud or scholarly review.
+
+## Summary sidecars
+
+| Rule | Enforcement and limits | Executable evidence | Setting/record |
+|---|---|---|---|
+| `SUM-TRUNCATED` | Error for cut-off endings or missing required sentence punctuation | [`tests/test_summary_170.py`](../tests/test_summary_170.py) | Summary sidecar |
