@@ -4,6 +4,17 @@ Changes are recorded in [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
 Champollion enforces mechanical requirements and records judgement (VER-1). It does not translate or certify sense. The dated 1.0.0 entry records release contents, not approval to publish; SPEC.md remains a working specification until publication is approved.
 
+## [1.7.1] - 2026-11-20
+
+### Fixed
+
+- PDF export: Chinese and Literary Chinese text (`lang` `zh*`, `lzh*`) is set with `text-spacing-trim:space-all`, so full-width punctuation keeps its full advance at line ends. Under the default `normal`, Chrome 157 fits a line by trimming its closing `。”` and then paints them untrimmed, up to half an em past the column; the overflow probe then refused the book with `PAGE-OVERFLOW` (hall-secret-teachings-plain-zh, 2026-11-19: `…都等于701。”` 6.1px past a 424px column). Chrome 153 trimmed consistently and never overflowed. EPUB output is unchanged.
+- PDF export: the overflow probe measures again once the web fonts have loaded (`document.fonts.ready`), not only as the page is parsed. A line measured in a fallback face before a font-css slice arrived could fit and then print wider than the column: the same hall-secret-teachings-plain-zh page passed one print and failed the next.
+
+### Migration
+
+- Re-vendor and rebuild Chinese PDFs. Line breaks in Chinese and Literary Chinese books can move where a line ended on trimmed punctuation, so page counts and folios can change; PDFs cached before this release keep the old line breaks. A book that passed before can now be refused with `PAGE-OVERFLOW` if a line overflows only in its printing face: fix the line rather than pinning 1.7.0. No protocol, profile, CLI flag, or report-field changes. Rollback: re-vendor v1.7.0.
+
 ## [1.7.0] - 2026-11-16
 
 ### Added

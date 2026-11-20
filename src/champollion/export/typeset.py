@@ -464,6 +464,9 @@ body{margin:0;color:var(--ink);font-family:var(--serif);line-height:1.5;font-ker
 .end-mark{text-align:center;color:var(--accent);margin:.35in 0 0;font-size:12pt}
 [lang^=lzh] .text,[lang^=zh] .text{font-family:"Songti TC","Songti SC","Noto Serif CJK TC","Noto Serif TC",serif;line-height:1.75;font-size:1.02em}
 [lang^=lzh] .prose,[lang^=zh] .prose{hyphens:none;text-align:justify}
+/* Full-width punctuation keeps its full advance at line ends. Under the default text-spacing-trim:normal, Chrome 157 fits
+   a line by trimming its closing 。” but then paints the punctuation untrimmed, up to half an em past the column. */
+[lang^=lzh],[lang^=zh]{text-spacing-trim:space-all}
 [lang^=ar] .text{font-family:"Geeza Pro","Noto Naskh Arabic","Noto Sans Arabic","Al Nile",serif;font-size:1.12em;line-height:1.95}
 [lang^=sa] .text,[lang^=hi] .text{font-family:"Kohinoor Devanagari","Noto Serif Devanagari","Devanagari Sangam MN",serif;font-size:1em;line-height:1.7}
 [lang^=egy] .text{font-family:"Noto Sans Egyptian Hieroglyphs","Noto Serif","EB Garamond",serif;line-height:1.9;font-size:1.32em}
@@ -611,11 +614,14 @@ REFS_PAGE_CSS_RTL = "@page body{margin:.95in .33in .98in .79in}.unit>.opener,.un
 
 # Before printing, lay the text out at the print column width and flag any line that cannot fit: Chrome would
 # otherwise clip it at the page edge or shrink the whole book, silently. build.py refuses a flagged book by name.
-OVERFLOW_PROBE = """<script>(function(){var b=document.body,w=b.style.width;b.style.width=%s;var bad=[];
+# The probe measures as the page is parsed and again once the web fonts have loaded: a line measured in a fallback face
+# (a font-css slice not yet fetched) can fit and then overflow in the face that prints, so one early check is not enough.
+OVERFLOW_PROBE = """<script>(function(){var b=document.body,flagged=false;function probe(){if(flagged)return;
+var w=b.style.width;b.style.width=%s;var bad=[];
 document.querySelectorAll('.text .ln,.text p:not(.prose),.opener h2,.toc li,.tp-title').forEach(function(e){
 if(e.scrollWidth>e.clientWidth+2&&bad.length<3)bad.push(e.textContent.slice(0,60))});b.style.width=w;
-if(bad.length){var f=document.createElement('p');f.textContent='\u00a7\u00a7OVERFLOW\u00a7\u00a7 '+bad.join(' | ');
-b.insertBefore(f,b.firstChild)}})();</script>"""
+if(bad.length){flagged=true;var f=document.createElement('p');f.textContent='\u00a7\u00a7OVERFLOW\u00a7\u00a7 '+bad.join(' | ');
+b.insertBefore(f,b.firstChild)}}probe();if(document.fonts)document.fonts.ready.then(probe)})();</script>"""
 
 
 

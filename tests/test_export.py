@@ -857,5 +857,122 @@ class PdfCase(unittest.TestCase):
             self.assertEqual(verifies, [{0: 7, 1: 9}, {0: 7, 1: 9}, {0: 7, 1: 9}, {0: 6, 1: 9}])
 
 
+# An original zh test text: short hard-wrapped lines (set as .ln), each ending in full-width closing punctuation after
+# digits or a Latin run, the shape of the hall-secret-teachings-plain-zh line Chrome 157 set past the column.
+ZH_LINES = """---
+slug: zh-punctuation
+title: "Punctuation Test"
+author: Someone
+tradition: chinese
+language: zh-Hans
+as_of: 2026-11-19
+---
+
+## Original
+
+### Part 1
+
+这一行是为排版测试而写的原创文字，它的各个数值都等于701。”
+其中的拉丁字母 ABC DEF，以及数字12和34，都会出现在这里。”
+最后一行用来检查句末的引号和句号是否会超出版心的右边。”
+"""
+
+
+def _synthetic_cjk_font(path):
+    """A minimal CJK font: one box for every ideograph, half-em digits, and full-width punctuation whose `halt` and
+    `chws` features halve it (as in Noto Serif SC). Generated here, so the tests ship no third-party font."""
+    from fontTools.feaLib.builder import addOpenTypeFeaturesFromString
+    from fontTools.fontBuilder import FontBuilder
+    from fontTools.pens.ttGlyphPen import TTGlyphPen
+
+    def rect(x0, y0, x1, y1):
+        pen = TTGlyphPen(None)
+        pen.moveTo((x0, y0)); pen.lineTo((x0, y1)); pen.lineTo((x1, y1)); pen.lineTo((x1, y0)); pen.closePath()
+        return pen.glyph()
+
+    close, opening = [0x3002, 0xFF0C, 0x3001, 0x201D, 0x2019, 0xFF1A], [0x201C, 0x2018, 0x300A]
+    punct = {c: f"uni{c:04X}" for c in close + opening}
+    order = [".notdef", "space", "han", *punct.values(), *(f"d{i}" for i in range(10))]
+    fb = FontBuilder(1000, isTTF=True)
+    fb.setupGlyphOrder(order)
+    cmap = {c: "han" for c in range(0x4E00, 0xA000)}
+    cmap.update(punct)
+    cmap.update({0x30 + i: f"d{i}" for i in range(10)})
+    cmap[0x20] = "space"
+    fb.setupCharacterMap(cmap)
+    glyphs = {".notdef": rect(60, -120, 440, 880), "space": TTGlyphPen(None).glyph(), "han": rect(60, -120, 940, 880)}
+    glyphs.update({punct[c]: rect(100, -60, 220, 60) for c in close})
+    glyphs.update({punct[c]: rect(780, -60, 900, 60) for c in opening})
+    glyphs.update({f"d{i}": rect(40, 0, 460, 700) for i in range(10)})
+    fb.setupGlyf(glyphs)
+    metrics = {name: (1000, 0) for name in order}
+    metrics.update({f"d{i}": (500, 40) for i in range(10)})
+    metrics.update({".notdef": (500, 60), "space": (250, 0)})
+    fb.setupHorizontalMetrics(metrics)
+    fb.setupHorizontalHeader(ascent=880, descent=-120)
+    fb.setupNameTable({"familyName": "Champollion Test CJK", "styleName": "Regular"})
+    fb.setupOS2(sTypoAscender=880, sTypoDescender=-120, usWinAscent=880, usWinDescent=120)
+    fb.setupPost()
+    addOpenTypeFeaturesFromString(fb.font, (
+        "languagesystem DFLT dflt; languagesystem hani dflt;\n"
+        f"@close = [{' '.join(punct[c] for c in close)}]; @open = [{' '.join(punct[c] for c in opening)}];\n"
+        "feature halt { pos @close <0 0 -500 0>; pos @open <-500 0 -500 0>; } halt;\n"
+        "feature chws { pos @close @close' <0 0 -500 0>; pos @open' <-500 0 -500 0> @open; } chws;\n"))
+    fb.save(str(path))
+
+
+# Lays the page out at every column width from 200 to 600px and lists the lines wider than their box.
+_WIDTH_SWEEP = """<script>document.fonts.ready.then(function(){var b=document.body,bad=[];
+for(var w=200;w<=600;w+=0.5){b.style.width=w+'px';document.querySelectorAll('.text .ln,.text p').forEach(function(e){
+if(e.scrollWidth>e.clientWidth+1&&bad.length<5)bad.push(w+'px '+(e.scrollWidth-e.clientWidth)+'px '+e.textContent.slice(-12))})}
+var p=document.createElement('pre');p.id='sweep';p.textContent='SWEEP['+bad.join(' | ')+']SWEEP';document.body.appendChild(p)});</script>"""
+
+
+@unittest.skipUnless(_chrome(), "Chrome/Chromium not installed")
+@unittest.skipUnless(importlib.util.find_spec("fontTools"), "fonttools not installed (needed to build the test font)")
+class CjkPunctuationCase(unittest.TestCase):
+    def test_full_width_punctuation_never_runs_past_the_column(self):
+        """Chrome 157's default text-spacing-trim fits a line by trimming its closing 。” and then paints them full
+        width, up to half an em past the column (hall-secret-teachings-plain-zh, 2026-11-19). At no column width may a
+        Chinese line be wider than its box."""
+        import subprocess
+        with tempfile.TemporaryDirectory() as tmp:
+            font = Path(tmp) / "test-cjk.ttf"
+            _synthetic_cjk_font(font)
+            css = Path(tmp) / "fonts.css"
+            css.write_text("".join(f"@font-face{{font-family:'{family}';src:url({font.as_uri()})}}\n"
+                                   for family in ("Songti TC", "Songti SC", "Noto Serif CJK TC", "Noto Serif TC")), "utf-8")
+            book = load_book(write(tmp, "zh.md", ZH_LINES), "original")
+            html = print_html(book, Options(font_css=str(css)))
+            self.assertIn('<span class="ln">', html)
+            page = Path(tmp) / "page.html"
+            page.write_text(html.replace("</body>", _WIDTH_SWEEP + "</body>"), "utf-8")
+            done = subprocess.run([_chrome(), "--headless=new", "--disable-gpu", "--no-sandbox", "--no-first-run",
+                                   "--hide-scrollbars", f"--user-data-dir={Path(tmp) / 'profile'}", "--allow-file-access-from-files",
+                                   "--virtual-time-budget=30000", "--dump-dom", page.as_uri()],
+                                  capture_output=True, text=True, timeout=180)
+            found = re.search(r'<pre id="sweep">SWEEP\[(.*?)\]SWEEP</pre>', done.stdout, re.S)
+            self.assertIsNotNone(found, done.stderr[-500:])
+            self.assertEqual(found.group(1), "", "lines wider than the column (width, overflow, line end)")
+
+    def test_overflow_probe_measures_again_once_fonts_have_loaded(self):
+        """A line can fit in a fallback face while the probe first runs and overflow in the web font that prints: the
+        same hall-secret-teachings-plain-zh HTML passed one print and failed the next. The probe must measure again
+        after document.fonts.ready. Here a head script widens one line from that moment (its callback is registered
+        first, so it runs before the probe's): a probe that measures only once passes it; this one refuses it."""
+        from champollion.export.pdf import check_overflow, html_to_pdf
+        late = ("<script>document.fonts.ready.then(function(){document.body.classList.add('late')})</script>"
+                "<style>.late .text .ln{white-space:nowrap}</style>")
+        with tempfile.TemporaryDirectory() as tmp:
+            wide = CHAPTERS.replace("Second chapitre.", "\n".join(["une ligne courte"] * 4 + [" ".join(["mot"] * 120)]))
+            html = print_html(load_book(write(tmp, "late.md", wide), "original"), Options(unit_noun="Chapter"))
+            out = str(Path(tmp) / "late.pdf")
+            html_to_pdf(html.replace("</head>", late + "</head>", 1), out, _chrome(), 180)
+            with self.assertRaises(ChampollionError) as ctx:
+                check_overflow(out)
+            self.assertEqual(ctx.exception.cause, "PAGE-OVERFLOW")
+            self.assertIn("mot mot", str(ctx.exception))
+
+
 if __name__ == "__main__":
     unittest.main()
