@@ -4,6 +4,26 @@ Changes are recorded in [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
 Champollion enforces mechanical requirements and records judgement (VER-1). It does not translate or certify sense. The dated 1.0.0 entry records release contents, not approval to publish; SPEC.md remains a working specification until publication is approved.
 
+## [1.8.0] - 2026-11-20
+
+### Added
+
+- Author notes (SPEC §2.4): an author's footnotes are kept as `[Note L]` lines after their paragraph, with the printed mark `L` (`*)`, `**)`, `(a)`, `†`, …) written inline and unescaped. Motivated by Stirner's 1845 *Der Einzige und sein Eigenthum* in Mouseia, whose `*)`/`**)` marks had to be rewritten as (a)/(b) because the debris gate flagged `**`. Fixtures `author-notes` and `author-notes-unpaired`.
+- `champollion packets split|verify|join` for long texts: split an Original into packets of at most N words at paragraph/heading boundaries; verify each draft packet against its source packet for identical paragraph anchors, page markers, heading count and note lines, naming missing, extra, duplicate and out-of-order items per packet (exit 1 on failure); rejoin in order, refusing (`WRK-5`) with `--source` when any packet fails. Haiku drafts of the Stirner edition dropped 19 page markers across 128 packets. Fixture `packets`. The existing `packets --register --units [--root] [--out] [--json]` form is unchanged; `packets` with neither a subcommand nor both `--register` and `--units` is now a named usage error (`champollion: usage: ...`, still exit 2) rather than an argparse error.
+- `champollion.dta`: `join_hyphen_signs` joins DTA `¬` hyphenation across emphasis spans, page markers and note anchors and returns unresolved residuals; `page_label` reads `<pb n="35 [354]">`. docs/sourcing.md documents DTA TEI extraction traps, including footnotes inside `<p>` and footnotes split across page breaks.
+
+### Fixed
+
+- VER-6 (clarified under the same ID): a star note mark paired within its unit, an inline `**)` with a `[Note **)]` line, is no longer `VER-DEBRIS`. Unpaired marks, escaped marks and other markup on the line are still reported.
+- `verify-vendor` no longer fails a vendored snapshot because interpreter caches (`__pycache__/*.pyc`, `*.pyo`) exist; it lists them under a new `bytecode` result key. `vendor` already excluded them from the manifest. Other files in `__pycache__` and loose `.pyc` files remain `extra`.
+- `export --inline-emphasis` no longer pairs two `*)` note marks on one line as italics: an emphasis marker cannot open before `)`.
+
+### Migration
+
+- Feature release: no profile field, rule ID or protocol version change, and no new gate. VER-6 can only report fewer findings, for paired note marks. `verify-vendor` JSON gains the `bytecode` key, and a snapshot whose only extras were bytecode caches now verifies. The new `packets split|verify|join` subcommands are opt-in; existing `packets`, `review` and `assemble` invocations behave as before.
+- Mouseia: the vendored compatibility gate does not follow this release automatically. Sync it deliberately: `champollion vendor --into vendor --tag v1.8.0`, then `champollion verify-vendor vendor/champollion`, rerun the frozen-oracle comparisons and focused fixtures, and commit the snapshot, integrity evidence and migration record together after the host's release review. Author notes rewritten as (a)/(b) to dodge the old debris gate may be restored to their printed `*)`/`**)` marks only after that sync.
+- Rollback: re-vendor v1.7.1 (restore the previous vendored snapshot).
+
 ## [1.7.1] - 2026-11-20
 
 ### Fixed

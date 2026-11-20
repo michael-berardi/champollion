@@ -196,7 +196,8 @@ def smarten(text: str, prev: str = "") -> str:
 
 def _emphasis_html(text: str) -> str:
     """Escape text and interpret only simple paired asterisks, never arbitrary HTML."""
-    paired = re.compile(r'(?<!\*)(\*\*|\*)([^\s*](?:[^*\n]*?[^\s*])?)\1(?!\*)')
+    # An opening marker is never followed by ")": `*)` and `**)` are author-note marks (SPEC §2.4).
+    paired = re.compile(r'(?<!\*)(\*\*|\*)(?!\))([^\s*](?:[^*\n]*?[^\s*])?)\1(?!\*)')
     out = []
     cursor = 0
     for match in paired.finditer(text):

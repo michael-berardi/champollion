@@ -71,7 +71,7 @@ rights and missing source evidence cannot be waived.
 From an installed, verified release or a reviewed tagged checkout:
 
 ```sh
-champollion vendor --into vendor --tag v1.7.1
+champollion vendor --into vendor --tag v1.8.0
 champollion verify-vendor vendor/champollion
 python3 vendor/champollion/__main__.py rules
 ```
@@ -80,6 +80,12 @@ python3 vendor/champollion/__main__.py rules
 argument. Retain `VENDOR.json`, including its upstream label and file hashes. The
 label is a record of the selected release, not cryptographic proof of its origin.
 Review and verify the upstream artifact before accepting a new manifest.
+Running or importing the vendored package can leave `__pycache__/*.pyc` caches
+(for example from a run without `sys.dont_write_bytecode`). `vendor` never copies
+them and `verify-vendor` lists them under `bytecode` without failing; they are
+regenerable caches, not integrity evidence, so keep `__pycache__/` gitignored.
+Any other file inside `__pycache__`, or a loose `.pyc` beside the sources, is
+still reported as `extra`.
 Production builds must not fetch packages. Updating a vendor is a development
 change followed by integrity checks, host tests, and oracle comparisons.
 

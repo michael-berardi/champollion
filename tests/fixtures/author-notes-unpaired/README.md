@@ -1,0 +1,1 @@
+A Plain draft kept the **) anchor but dropped its [Note **)] line, as Haiku drafts of the 1845 Stirner edition dropped markers in Mouseia. The unpaired **) remains scan debris (VER-6, VER-DEBRIS). All text is original synthetic CC0-1.0 test data; 2026-01-01 is a fixed test input, not an acquisition or review claim.

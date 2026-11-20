@@ -1,0 +1,21 @@
+{
+  "records": [
+    {
+      "id": "synthetic",
+      "provider": "project-original-test-data",
+      "edition": "garden-bird-synthetic-v1",
+      "revision": "catalogue:garden-bird-synthetic-v1",
+      "rights": {
+        "work": "CC0-1.0",
+        "transcription": "CC0-1.0"
+      },
+      "sha256": "f84fc08b908de4cec9469a5c567a490e0f589068d5f04ea081ed88b0e5b05946",
+      "raw_snapshot": "sources/raw/synthetic.txt",
+      "url": "urn:champollion:synthetic:garden-bird-v1",
+      "cleaning": "UTF-8 bytes already contain headed Original units; embed unchanged.",
+      "attribution": "Original synthetic text generated for Champollion tests, dedicated to CC0-1.0; no third-party text.",
+      "aids": [],
+      "reviews": []
+    }
+  ]
+}

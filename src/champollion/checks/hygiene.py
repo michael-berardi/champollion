@@ -3,6 +3,7 @@ import re
 from typing import Any, List
 
 from ..findings import Finding
+from ..notes import mask_marks, paired_labels
 from . import Check, Context, finding, gate_status, house_sections, legacy_label
 
 OCR_MARKER = re.compile(r"\[OCR unclear", re.I)
@@ -38,16 +39,19 @@ def run(ctx: Context) -> List[Finding]:
     for register, section in house_sections(ctx):
         label = legacy_label(register)
         for unit in section.units:
+            # Author-note marks (SPEC §2.4) are debris only when unpaired.
+            paired = paired_labels(text for _, text in unit.lines)
             for number, line in unit.lines:
                 if line.lstrip().startswith("<!--"):
                     continue
+                scanned = mask_marks(line, paired) if paired else line
                 args = {"unit": unit.title, "register": register.id, "line": number}
                 if ctx.profile.checks.debris:
                     if OCR_MARKER.search(line):
                         result.append(finding(ctx, "VER-OCR-MARKER", "SEG-8",
                                               f"{label} line {number}: raw [OCR unclear] marker", **args))
                     # Quote conventions and mathematical punctuation are not universal debris.
-                    debris = (DEBRIS if _english(ctx) else NEUTRAL_DEBRIS).search(line)
+                    debris = (DEBRIS if _english(ctx) else NEUTRAL_DEBRIS).search(scanned)
                     if debris:
                         context = line[max(0, debris.start() - 30):debris.end() + 30]
                         result.append(finding(ctx, "VER-DEBRIS", "VER-6",

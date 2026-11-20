@@ -51,11 +51,29 @@ def _parser() -> argparse.ArgumentParser:
         check.add_argument("--quiet", action="store_true")
         _json_flag(check)
     packets = commands.add_parser("packets")
-    packets.add_argument("--register", required=True)
-    packets.add_argument("--units", required=True)
+    packets.add_argument("--register")
+    packets.add_argument("--units")
     packets.add_argument("--root", default=".")
     packets.add_argument("--out")
     _json_flag(packets)
+    tools = packets.add_subparsers(dest="packets_command", required=False)
+    split = tools.add_parser("split", help="split a text into packets of at most N words at block boundaries")
+    split.add_argument("source")
+    split.add_argument("--max-words", type=int, required=True)
+    split.add_argument("--out", dest="packet_out", required=True)
+    _json_flag(split)
+    for name in ("verify", "join"):
+        tool = tools.add_parser(name)
+        if name == "verify":
+            tool.add_argument("source_dir")
+            tool.add_argument("draft_dir")
+        else:
+            tool.add_argument("draft_dir")
+            tool.add_argument("--out", dest="packet_out", required=True)
+            tool.add_argument("--source", dest="source_dir", help="verify against these source packets first")
+        tool.add_argument("--anchor", help="paragraph-anchor regex (multiline); default [ID nnnn] at line start")
+        tool.add_argument("--page", help="page-marker regex; default [YYYY page]")
+        _json_flag(tool)
     assemble = commands.add_parser("assemble")
     assemble.add_argument("--register", required=True)
     assemble.add_argument("--from", dest="directory", required=True)
@@ -386,8 +404,26 @@ def _dispatch(args: argparse.Namespace) -> int:
         from .rules import rule_catalogue
         rules = rule_catalogue()
         _emit({"rules": rules}, args.json, "\n".join(f"{r['id']} {r['title']}" for r in rules))
+    elif command == "packets" and args.packets_command:
+        from . import chunking
+        patterns = {} if args.packets_command == "split" else {
+            key: value for key, value in (("anchor", args.anchor), ("page", args.page)) if value is not None}
+        if args.packets_command == "split":
+            result = chunking.write_split(args.source, args.packet_out, args.max_words)
+            oversize = [p["file"] for p in result["packets"] if p["oversize"]]
+            _emit(result, args.json, f"wrote {len(result['packets'])} packets to {result['out']}" +
+                  (f"; oversize single blocks: {', '.join(oversize)}" if oversize else ""))
+        elif args.packets_command == "verify":
+            result = chunking.verify_packets(args.source_dir, args.draft_dir, **patterns)
+            _emit(result, args.json, chunking.render_verify(result))
+            return int(not result["valid"])
+        else:
+            result = chunking.join_packets(args.draft_dir, args.packet_out, args.source_dir, **patterns)
+            _emit(result, args.json, f"joined {result['packets']} packets into {result['out']}")
     elif command == "packets":
         from .packets import packet_documents, write_packets
+        if args.register is None or args.units is None:
+            raise ChampollionError("packets requires --register and --units, or one of split, verify, join", cause="usage")
         root = Path(args.root).resolve()
         work = _one_work(root)
         profile = _profile(root)
@@ -426,7 +462,10 @@ def _dispatch(args: argparse.Namespace) -> int:
         from .vendor import verify_vendor
         result = verify_vendor(args.directory)
         lines = [f"{kind}: {name}" for kind in ("missing", "extra", "mismatches", "symlinks") for name in result[kind]]
-        _emit(result, args.json, "\n".join(lines) if lines else f"verified {result['directory']}")
+        if result["bytecode"]:
+            lines.append(f"ignored {len(result['bytecode'])} __pycache__ bytecode file(s); not integrity evidence")
+        _emit(result, args.json, "\n".join(lines) if not result["valid"] else
+              "\n".join([f"verified {result['directory']}"] + lines))
         return int(not result["valid"])
     else:
         raise ChampollionError(f"unknown command {command}", cause="usage")

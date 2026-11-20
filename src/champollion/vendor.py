@@ -24,6 +24,16 @@ def profile_directory() -> Path:
     raise ChampollionError("shipped profiles directory missing", cause="configuration")
 
 
+def _bytecode_cache(relative: Path) -> bool:
+    """A compiled cache file Python writes beside source, never vendored content.
+
+    Only ``*.pyc``/``*.pyo`` directly inside a ``__pycache__`` directory qualify; a
+    loose ``.pyc`` elsewhere or any other file in ``__pycache__`` is still untracked.
+    """
+    return (len(relative.parts) >= 2 and relative.parts[-2] == "__pycache__"
+            and relative.suffix in (".pyc", ".pyo"))
+
+
 def _files(directory: Path) -> list:
     return sorted((p for p in directory.rglob("*") if p.is_file() and "__pycache__" not in p.parts
                    and p.suffix not in (".pyc", ".pyo") and p.name != "VENDOR.json"),
@@ -90,8 +100,14 @@ def verify_vendor(directory: str = ".") -> dict:
                 or path.as_posix() != name or not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest)):
             raise ChampollionError(f"{destination}/VENDOR.json: invalid files entry {name!r}", cause="schema")
     try:
-        actual = {p.relative_to(destination).as_posix(): p for p in destination.rglob("*") if p.is_file()
-                  and p.relative_to(destination).as_posix() != "VENDOR.json"}
+        files = [p for p in destination.rglob("*") if p.is_file()
+                 and p.relative_to(destination).as_posix() != "VENDOR.json"]
+        # Interpreter bytecode caches (e.g. left by a run without dont_write_bytecode) are
+        # regenerable, never listed by vendor(), and reported rather than failing integrity.
+        bytecode = sorted(p.relative_to(destination).as_posix() for p in files
+                          if _bytecode_cache(p.relative_to(destination)))
+        actual = {p.relative_to(destination).as_posix(): p for p in files
+                  if not _bytecode_cache(p.relative_to(destination))}
         missing = sorted(set(expected) - set(actual))
         extra = sorted(set(actual) - set(expected))
         mismatches = sorted(name for name in set(expected) & set(actual)
@@ -101,4 +117,5 @@ def verify_vendor(directory: str = ".") -> dict:
     except OSError as exc:
         raise ChampollionError(f"{destination}: {exc}", cause="IO") from exc
     differences = {"missing": missing, "extra": extra, "mismatches": mismatches, "symlinks": symlinks}
-    return {"directory": str(destination), "valid": not any(differences.values()), **differences}
+    return {"directory": str(destination), "valid": not any(differences.values()), **differences,
+            "bytecode": bytecode}

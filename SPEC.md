@@ -76,6 +76,12 @@ The excerpt comes from Mouseia `corpus/emerald-tablet.md`. That file uses `curat
 
 Refuse a clean or conforming result for missing Original, missing required registers, empty required units, duplicate sections, broken alignment, missing source records, unknown rights, missing snapshots, or hash mismatches. Parsing, configuration, schema, and IO failures are named operational errors. Do not fetch a source to fill a missing local snapshot. Do not invent a unit, source pin, provenance value, or review result.
 
+### 2.4 Author notes
+
+Keep an author's own footnotes in the unit text as note lines placed after the paragraph that carries their anchor: `[Note L] note text`, at the start of a line. `L` is the printed mark, at most eight characters without spaces or brackets: `*)`, `**)`, `***)`, `(a)`, `1)`, `†`. Write the same `L` inline, unescaped, where the source prints the anchor, and keep the same labels and order in Original and every register. Star marks are whole tokens: `*)` never matches inside `**)`. Do not escape them (`\*\*)`); backslashes remain debris. Editorial notes are not author notes and stay out of reader-facing text (PRV-4).
+
+Under VER-6, a star mark that is paired within its unit—an inline anchor and a `[Note L]` line with the same label—is not scan debris. An unpaired mark, such as an anchor whose note line a draft dropped, is still reported as `VER-DEBRIS`, and other markup on the same line is still checked. Pairing is a mechanical presence check; whether a note is complete and correctly placed is judgement. `champollion packets verify` compares note labels and inline anchors packet by packet (§9).
+
 ## 3. Profile contract: `champollion-profile/1`
 
 A profile is a UTF-8 JSON object. Use a standard-library JSON parser. Reject duplicate object keys, trailing data, comments, trailing commas, nonfinite numbers, wrong types, and unknown fields. Validate the entire object before checking works. Do not coerce strings to booleans or numbers. JSON booleans are not integers for threshold validation.
@@ -348,6 +354,8 @@ The core list is the table plus those declared-register pairs. Additional projec
 
 Keep attestations and dispatch records outside reader-facing unit text. Assembly validates a mechanical contract; it does not approve the translation's sense. Follow [collaborator guidance](docs/ai-workers.md) for packet and response presentation without weakening these rules.
 
+For a long text divided into word-bounded packets rather than units, `champollion packets split` breaks only at paragraph or heading boundaries, `packets verify` compares every draft packet with its source packet for identical paragraph anchors, page markers, heading count and note lines (§2.4), naming missing, extra, duplicate and out-of-order items per packet, and `packets join --source` refuses to rejoin drafts that fail (WRK-3, WRK-5). This is the same mechanical contract, not a judgement of sense.
+
 ## 10. Conformance
 
 A project claiming **Champollion 1.0 conformance** must identify protocol version 1.0.0, the exact profile revision, the works and house registers in scope, and its checker/gate configuration. Store conforming work documents, source evidence, records, and the mechanical report and judgement review record for the versions being published.
@@ -356,7 +364,7 @@ Run every mandatory core gate and every enabled applicable profile gate. Record 
 
 Conformance means the required gates ran and the review record exists, with no unresolved blocking finding or overdue exception. It never means the translation is good, faithful in sense, legally certified, or independently proven to have a particular production history. A project may report a mechanical check without claiming protocol conformance.
 
-The reference implementation targets Python 3.9+ and the standard library only. Checks read local evidence, make no network calls, and do not require a hosted service or a translation model. Checks never edit work documents. Writing commands are `init`, `source add`, `vendor`, `packets --out`, `assemble`, and the opt-in `review` group (`review packets`, `review verify-packets`, `review apply`, `review record`). Packets without `--out` print to stdout; assembly writes a separate copy and leaves the input unchanged. `review apply` edits only register passages, by exact single-match replacement of findings a second reader confirmed, under named refusal rules; it never edits the Original, and `review record` writes a VER-11-shaped record. The review commands write packets and read reply files offline; they call no model.
+The reference implementation targets Python 3.9+ and the standard library only. Checks read local evidence, make no network calls, and do not require a hosted service or a translation model. Checks never edit work documents. Writing commands are `init`, `source add`, `vendor`, `packets --out`, `packets split`, `packets join`, `assemble`, and the opt-in `review` group (`review packets`, `review verify-packets`, `review apply`, `review record`); `packets verify` and `verify-vendor` only read. Packets without `--out` print to stdout; assembly writes a separate copy and leaves the input unchanged. `review apply` edits only register passages, by exact single-match replacement of findings a second reader confirmed, under named refusal rules; it never edits the Original, and `review record` writes a VER-11-shaped record. The review commands write packets and read reply files offline; they call no model.
 
 ## 11. Versioning and change discipline
 

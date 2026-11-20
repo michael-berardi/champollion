@@ -28,6 +28,18 @@ A catalog number names an object; its paired hash fixes the captured content. A 
 
 Mouseia's Ali Baba record identifies stored page wikitext, `corpus/raw/ali-baba/clean.py`, revision evidence and correction decisions. It distinguishes accepted misprint corrections from changes to Galland's historic present (`corpus/SOURCES.md`, Ali Baba record). This is the level of detail needed to reproduce editorial cleaning, not merely a note saying “markup removed.”
 
+### Extracting a Deutsches Textarchiv (DTA) TEI edition
+
+DTA editions are page-faithful TEI with line breaks, hyphenation signs and running furniture kept. Mouseia's extractor for Stirner's 1845 *Der Einzige und sein Eigenthum* (`corpus/raw/stirner-einzige/extract.py`, 1230 paragraphs) met these traps; review each against the raw file rather than assuming a generic converter handles them:
+
+- **Hyphenation sign `¬`.** A word broken at a line end carries `¬` (and `<lb/>`), sometimes with a `<pb/>` page break between the halves. Join the halves and move the page marker before the joined word, never into it. When the break falls on an emphasis boundary (`<hi rendition="#g">`), the flattened text shows `*Ueber*¬ *zeugung*`, `*Bie¬* nen` or `*Ke*i¬ *ner*`; join to one emphasised word. `champollion.dta.join_hyphen_signs(text)` does these joins on flattened text, moves `[YYYY page]` markers before and note anchors after the word, and returns the cases it cannot resolve (for example `*Geiſtig*¬ keit`, a sign before punctuation) as residuals for a reviewed correction list. Some breaks use a plain `-` with `<lb/>`; decide those separately, since a real hyphen may be meant.
+- **Page numbers in `<pb n>`.** Brackets mark a number the transcribers supplied: `n="[354]"` is an unprinted page, and `n="35 [354]"` is a misprinted folio 35 corrected to 354. `champollion.dta.page_label` returns the supplied number; record the misprints in the cleaning notes.
+- **Footnotes inside paragraphs.** Author footnotes are `<note place="foot" n="*)">` elements inside `<p>`, at the anchor position. Replace each with its inline mark and emit the note body as a `[Note *)]` line after the paragraph (SPEC §2.4). Keep the printed marks; the debris check accepts them when paired.
+- **Footnotes split across page breaks.** A long note continues on the next page as a second `<note place="foot">` linked by `xml:id` and `next`/`prev`, possibly in a later paragraph. Concatenate the parts in link order into one note, and keep the page marker that fell inside it at the point where the continuation starts. Do not trust the links blindly: the Stirner file has `xml:id="note-0106" next="#prev-0105"`, a pointer that names no element, so check that every link resolves and that each pair is adjacent across one page break.
+- **Furniture and front matter.** `<fw>` running heads and catchwords, `<milestone>`, and printed tables of contents are not text; keep them only in the raw XML. Fail on any element the extractor has not been reviewed to handle rather than dropping it silently.
+
+Record the raw SHA-256 in the extractor and rerun it in a check mode, so the derived Original cannot drift from the stored export.
+
 ## Accept only a complete work
 
 **SRC-3—mechanical declarations; judgment of scope and survival.** Accept the whole named work or complete independently issued document. Do not present selected chapters, an opening, an abridgment or a sample as a work. If only part survives, include all surviving text and state the condition in provenance. `completeness: complete` then means complete surviving text, not an undamaged ancient original.

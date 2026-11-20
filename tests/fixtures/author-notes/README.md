@@ -1,0 +1,1 @@
+Author footnotes printed as *) and **) and kept as [Note *)] / [Note **)] lines with inline anchors (SPEC §2.4), motivated by the 1845 Stirner edition in Mouseia. Paired marks are not scan debris (VER-6). All text is original synthetic CC0-1.0 test data; 2026-01-01 is a fixed test input, not an acquisition or review claim.

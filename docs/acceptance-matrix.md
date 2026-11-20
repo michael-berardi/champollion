@@ -57,7 +57,7 @@ original synthetic defects and controls, never copies presented as historical te
 | **VER-3 Coverage gate** | Coverage and upper-middle ratio arithmetic | [`tests/test_checks.py`](../tests/test_checks.py) (`StructureCoverageTests`) | `coverage and ratio settings` |
 | **VER-4 Numbering gate** | Ordered markers and declared line counts | [`tests/test_checks.py`](../tests/test_checks.py) (`NumberingTests`) | `checks.numbering` |
 | **VER-5 Independence gate** | Pairwise overlap with exact denominators/boundaries | [`tests/test_checks.py`](../tests/test_checks.py) (`CopySpeechHygieneLanguageTests`) | `copy_ratio and sentence settings` |
-| **VER-6 Hygiene gates** | Hygiene patterns; intentional/source-attested notation requires judgement | [`tests/test_checks.py`](../tests/test_checks.py) (`CopySpeechHygieneLanguageTests`) | `debris, ellipsis` |
+| **VER-6 Hygiene gates** | Hygiene patterns; intentional/source-attested notation requires judgement. Author-note star marks (SPEC §2.4) are exempt only when paired in their unit | [`tests/test_checks.py`](../tests/test_checks.py) (`CopySpeechHygieneLanguageTests`); [`tests/test_stirner_gaps.py`](../tests/test_stirner_gaps.py) (`AuthorNoteTests`); fixtures `author-notes`, `author-notes-unpaired` | `debris, ellipsis` |
 | **VER-7 Language gates** | Selected language/name lists; unavailable policies are explicit | [`tests/test_checks.py`](../tests/test_checks.py) (`CopySpeechHygieneLanguageTests`) | `Language settings` |
 | **VER-8 Speech-mark gate** | Straight-quote balance; identifying unmarked speech is judgement | [`tests/test_checks.py`](../tests/test_checks.py) (`CopySpeechHygieneLanguageTests`) | `speech_marks` |
 | **VER-9 Rights, pin and provenance gate** | Rights, local source hash/pin and metadata checks | [`tests/test_checks.py`](../tests/test_checks.py) (`ProvenanceRightsTests`) | `Source/profile records` |
@@ -80,9 +80,9 @@ original synthetic defects and controls, never copies presented as historical te
 |---|---|---|---|
 | **WRK-1 Per-unit packets** | Deterministic source-only per-unit packets | [`tests/test_tooling.py`](../tests/test_tooling.py) (`PacketAssemblyTests`) | `Register/unit selection` |
 | **WRK-2 Register separation** | Packet excludes other register text; actual dispatch separation is judgement | [`tests/test_tooling.py`](../tests/test_tooling.py) (`PacketAssemblyTests`) | `Dispatch records` |
-| **WRK-3 Numbering contract** | Ordered returned marker validation | [`tests/test_tooling.py`](../tests/test_tooling.py) (`PacketAssemblyTests`) | `Source numbering policy` |
+| **WRK-3 Numbering contract** | Ordered returned marker validation; word-bounded packets compare anchors, page markers, headings and note lines per packet | [`tests/test_tooling.py`](../tests/test_tooling.py) (`PacketAssemblyTests`); [`tests/test_stirner_gaps.py`](../tests/test_stirner_gaps.py) (`PacketVerifyTests`); fixture `packets` | `Source numbering policy` |
 | **WRK-4 No invention** | Noninvention and probable readings: judgement | No automatic invention certification | `Source comparison` |
-| **WRK-5 Assembly refuses gaps** | Assembly refuses missing/duplicate/unknown/reordered/empty units and marker/blank mismatches | [`tests/test_tooling.py`](../tests/test_tooling.py) (`PacketAssemblyTests`) | `Assembly contract` |
+| **WRK-5 Assembly refuses gaps** | Assembly refuses missing/duplicate/unknown/reordered/empty units and marker/blank mismatches; `packets join --source` refuses failing packets | [`tests/test_tooling.py`](../tests/test_tooling.py) (`PacketAssemblyTests`); [`tests/test_stirner_gaps.py`](../tests/test_stirner_gaps.py) (`PacketVerifyTests`) | `Assembly contract` |
 | **WRK-6 Attestation** | Retain contributor identity, originality, source and form attestations: project review | No automatic attestation-truth test | `Contributor records` |
 
 ## Adoption and changes
