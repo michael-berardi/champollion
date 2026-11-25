@@ -4,6 +4,20 @@ Changes are recorded in [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
 Champollion enforces mechanical requirements and records judgement (VER-1). It does not translate or certify sense. The dated 1.0.0 entry records release contents, not approval to publish; SPEC.md remains a working specification until publication is approved.
 
+## [1.9.0] - 2026-11-25
+
+### Added
+
+- Export typesetting for printed Markdown pipe tables and named source notes (`[^key]`):
+  - Consecutive pipe-delimited rows (`| ... |`, with a second `|---|` divider row when a header is present) render as HTML tables (`<table class="tbl">`) in PDF and EPUB with one header row, all structural divider rows stripped (promoting row 0 to a header only when the divider is at index 1), escaped pipes (`\|`) preserved inside cells, padded ragged rows, per-cell escaping, inline note/reference markers, and `--inline-emphasis` support.
+  - Inline `[^key]` calls render as superscript labels (`<sup class="fn">key</sup>`) and `[^key]: body` paragraphs render as note paragraphs (`<p class="note">`) carrying the same label; consecutive `[^key]:` definitions inside a single paragraph split into separate note blocks while preserving multi-line continuations, and malformed markers remain literal text.
+  - Synthetic fixtures in `tests/test_export_tables_notes.py` cover headers, divider stripping, escaped pipes, ragged rows, escaping, table-cell note calls and author star marks, the emphasis option, consecutive and continued definitions, repeated and unreferenced notes, malformed keys, and EPUB CSS.
+
+### Migration
+
+- Feature release: no checker, profile, protocol, or vendored-gate change. Edition bodies containing pipe tables or `[^key]` source notes now typeset cleanly in PDF and EPUB; bodies without them are byte-identical.
+- Rollback: re-vendor v1.8.0 (restore the previous vendored snapshot).
+
 ## [1.8.0] - 2026-11-20
 
 ### Added

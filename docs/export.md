@@ -44,6 +44,7 @@ The date normalizer accepts Chrome's supported classic, single-revision PDF meta
 - **Nothing is silently clipped or shrunk.** Before printing, every line that cannot wrap is laid out at the print column width; a line too wide for the page fails the export (`PAGE-OVERFLOW`) with its opening words, as does a book Chrome scaled down.
 - **Divisions that are only reference numbers** (`Stephanus 17a`, `Verse 4`, `Clause 2`, `Declaration 9`, `Page 3`, `Column 1`) become margin numbers; they get no headings and no contents.
 - **A title-cased opening line** before running prose is set as the division's subtitle.
+- **Printed tables and named source notes.** Consecutive pipe-delimited rows (`| ... |`, with a second `|---|` divider row when a header is present) are typeset as tables with padded ragged rows, per-cell escaping, inline note/reference markers, and optional `--inline-emphasis`. Named source note calls (`[^key]`) become superscript labels and their `[^key]: body` paragraphs become note paragraphs carrying the same label; malformed markers stay literal text.
 - Reference-number syntax is the one the Mouseia reader uses (`src/champollion/export/refs.py`); the parser is a port, kept in step with it.
 
 ## Source emphasis

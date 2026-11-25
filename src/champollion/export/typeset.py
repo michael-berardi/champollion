@@ -10,7 +10,7 @@ from urllib.parse import urlparse
 
 from ..findings import ChampollionError
 from .model import Book, Unit
-from .refs import Block, Line, Segment, figure_of
+from .refs import Block, Line, Segment, _inline, figure_of
 
 _BAD_XML = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\ufffe\uffff]")
 KICKER = re.compile(
@@ -230,6 +230,41 @@ def _ref(lead: str) -> str:
     return f'<span class="ref">{esc(lead)}</span>' if lead else ""
 
 
+def _cells(line: Line) -> List[str]:
+    """The cell texts of one pipe-delimited row, without the outermost pipes."""
+    text = line.plain().strip()
+    if text.startswith("|"):
+        text = text[1:]
+    if re.search(r"(?<!\\)(?:\\\\)*\|$", text):
+        text = text[:-1]
+    return [cell.strip().replace(r"\|", "|") for cell in re.split(r"(?<!\\)\|", text)]
+
+
+def _table_html(block: Block, smart: bool, opts: Options) -> str:
+    """A printed table: the source's own cells, escaped, with emphasis and inline notes/refs, and no invented header."""
+    rows = [_cells(line) for line in block.lines if line.plain().strip().startswith("|")]
+    if not rows:
+        return ""
+    columns = max(len(row) for row in rows)
+    rows = [row + [""] * (columns - len(row)) for row in rows]
+
+    def cell_html(cell: str) -> str:
+        return _segments(Line("", False, _inline(cell)), smart, opts.inline_emphasis)
+
+    def row_html(cells: List[str], tag: str) -> str:
+        return "<tr>" + "".join(f"<{tag}>{cell_html(cell)}</{tag}>" for cell in cells) + "</tr>"
+
+    out = ['<table class="tbl">']
+    body = rows
+    if block.header:
+        out.append("<thead>" + row_html(rows[0], "th") + "</thead>")
+        body = rows[1:]
+    if body:
+        out.append("<tbody>" + "".join(row_html(row, "td") for row in body) + "</tbody>")
+    out.append("</table>")
+    return "".join(out)
+
+
 def render_blocks(blocks: List[Block], lang: str, opts: Options, epub: bool = False) -> str:
     out: List[str] = []
     smart = lang_attr(lang).split("-")[0].lower() == "en"
@@ -237,6 +272,13 @@ def render_blocks(blocks: List[Block], lang: str, opts: Options, epub: bool = Fa
     for index, block in enumerate(blocks):
         if block.kind == "chapter":
             out.append(f'<p class="subhead">Chapter {esc(block.ref.rstrip(".").split(".")[-1])}</p>')
+            continue
+        if block.kind == "note" and block.lines:
+            out.append(f'<p class="note"><sup class="fn">{esc(block.ref)}</sup> '
+                       f'{_segments(block.lines[0], smart, opts.inline_emphasis)}</p>')
+            continue
+        if block.kind == "table":
+            out.append(_table_html(block, smart, opts))
             continue
         fig = figure_of(block)
         if fig:
@@ -449,6 +491,12 @@ body{margin:0;color:var(--ink);font-family:var(--serif);line-height:1.5;font-ker
 .rubric{color:#8c3b2c}
 .mk{font:600 6.6pt/1 var(--serif);color:var(--accent);vertical-align:super;margin:0 .15em;font-variant-numeric:oldstyle-nums}
 .fn{font-size:.66em;vertical-align:super;line-height:0;color:var(--accent)}
+.note{text-align:justify;hyphens:auto;font-size:.94em;text-indent:0!important;margin:.08in 0 .02in;padding-inline-start:.3in}
+.note sup.fn{letter-spacing:.02em}
+.tbl{width:100%;border-collapse:collapse;margin:.16in 0;break-inside:avoid;font-size:.94em}
+.tbl th,.tbl td{padding:.035in .06in;vertical-align:top;text-align:start;border:0}
+.tbl th{font:600 .92em/1.35 var(--serif);color:var(--accent);border-bottom:.6pt solid rgba(0,0,0,.35)}
+.tbl tbody tr+tr td{border-top:.4pt solid rgba(0,0,0,.12)}
 .dek{font:italic 400 1.02em/1.4 var(--display);font-variant-numeric:lining-nums;color:var(--soft);text-align:center;margin:-.12in 0 .26in!important;text-indent:0!important}
 .subhead{font:600 7.6pt/1 "Helvetica Neue",Helvetica,Arial,sans-serif;letter-spacing:.24em;text-transform:uppercase;color:var(--accent);margin:.34in 0 .14in !important;text-align:center;break-after:avoid}
 .fig{margin:.2in 0;text-align:center;break-inside:avoid}.fig img{max-width:100%;max-height:4in}

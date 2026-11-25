@@ -31,6 +31,11 @@ h1,h2,h3{font-weight:normal;margin:0;page-break-after:avoid;break-after:avoid;hy
 .rubric{color:#8c3b2c}
 .mk{font-size:.7em;color:#8a6a2c;vertical-align:super;margin:0 .15em}
 .fn{font-size:.7em;vertical-align:super;line-height:0;color:#8a6a2c}
+.note{text-align:justify;text-indent:0;font-size:.94em;margin:.5em 0;margin-inline-start:.6em}
+.tbl{width:100%;border-collapse:collapse;margin:.9em 0;font-size:.94em}
+.tbl th,.tbl td{padding:.1em .3em;vertical-align:top;text-align:start;border:0}
+.tbl th{color:#8a6a2c;border-bottom:1px solid #bbb}
+.tbl tbody tr+tr td{border-top:1px solid #e2ded8}
 .dek{text-align:center;font-style:italic;color:#6f6659;margin:-.4em 0 1.4em;text-indent:0}
 .subhead{font-size:.74em;letter-spacing:.2em;text-transform:uppercase;color:#8a6a2c;text-align:center;margin:2em 0 .8em !important;text-indent:0}
 .fig{margin:1.2em 0;text-align:center;page-break-inside:avoid}.fig img{max-width:100%}

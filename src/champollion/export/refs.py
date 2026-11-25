@@ -25,6 +25,12 @@ BEKKER = re.compile(r"^\[Bekker (\d{3,4}[ab])(?: line (\d{1,2}[a-z]?))?\]$")
 INLINE = re.compile(r"(\[\d{1,3}[a-e]\]|(?<=[^\s\[])\[\d{1,3}\])")
 STEPHANUS = re.compile(r"^\[\d{1,3}[a-e]\]$")
 NOTE = re.compile(r"^\[\d{1,3}\]$")
+# Named source notes written `[^key]` at the call and `[^key]: body` at the printed note.
+NOTE_CALL = re.compile(r"(\[\^[A-Za-z0-9][A-Za-z0-9_-]*\])")
+NOTE_DEF = re.compile(r"^\[\^([A-Za-z0-9][A-Za-z0-9_-]*)\]:\s*(.*)$")
+# A printed table: consecutive pipe-delimited rows, the second one a `|---|` divider when a header row is present.
+TABLE_ROW = re.compile(r"^\|")
+TABLE_DIVIDER = re.compile(r"^\|(?:\s*:?-{3,}:?\s*\|)+\s*$")
 YEAR = re.compile(r"^\d{4}$")
 FIGURE = re.compile(r"^!\[([^\]]*)\]\(([^)\s]+)\)$")
 HIEROGLYPH_CONTROLS = re.compile("[\U00013430-\U0001345F︀-️]")
@@ -50,9 +56,10 @@ class Line:
 
 @dataclass
 class Block:
-    kind: str                      # "chapter" | "text"
-    ref: str = ""
+    kind: str                      # "chapter" | "text" | "note" | "table"
+    ref: str = ""                  # chapter ref, or a note's printed label
     lines: List[Line] = field(default_factory=list)
+    header: bool = False           # a table's first row is its header
 
 
 def _trim_zeros(ref: str) -> str:
@@ -81,7 +88,17 @@ def _inline(line: str) -> List[Segment]:
         elif NOTE.match(part):
             out.append(Segment(note=part[1:-1]))
         else:
-            out.append(Segment(text=part))
+            out.extend(_named_notes(part))
+    return out
+
+
+def _named_notes(text: str) -> List[Segment]:
+    """Split a run of prose on `[^key]` source-note calls; everything else stays text."""
+    out: List[Segment] = []
+    for piece in NOTE_CALL.split(text):
+        if not piece:
+            continue
+        out.append(Segment(note=piece[2:-1]) if NOTE_CALL.fullmatch(piece) else Segment(text=piece))
     return out
 
 
@@ -106,6 +123,26 @@ def parse_body(body: str, original: bool = False, language: str = "") -> List[Bl
             paragraphs.append(lines)
     pending = ""
     for lines in paragraphs:
+        if len(lines) >= 2 and all(TABLE_ROW.match(ln) for ln in lines):
+            divider = not TABLE_DIVIDER.match(lines[0]) and bool(TABLE_DIVIDER.match(lines[1]))
+            rows = [ln for ln in lines if not TABLE_DIVIDER.match(ln)]
+            blocks.append(Block("table", "", [Line("", False, [Segment(text=ln)]) for ln in rows], header=divider))
+            continue
+        if NOTE_DEF.match(lines[0]):
+            current_key = ""
+            current_parts: List[str] = []
+            for ln in lines:
+                definition = NOTE_DEF.match(ln)
+                if definition:
+                    if current_key:
+                        blocks.append(Block("note", current_key, [Line("", False, _inline(" ".join(current_parts).strip()))]))
+                    current_key = definition.group(1)
+                    current_parts = [definition.group(2)] if definition.group(2) else []
+                else:
+                    current_parts.append(ln)
+            if current_key:
+                blocks.append(Block("note", current_key, [Line("", False, _inline(" ".join(current_parts).strip()))]))
+            continue
         chapter = CHAPTER.match(lines[0]) if len(lines) == 1 else None
         if chapter:
             blocks.append(Block("chapter", chapter.group(1)))

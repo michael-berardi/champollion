@@ -4,8 +4,8 @@ title: "Champollion protocol"
 authors:
   - family-names: Example
     given-names: Alex
-version: 1.8.0
-date-released: "2026-11-20"
+version: 1.9.0
+date-released: "2026-11-25"
 url: "https://github.com/michael-berardi/champollion"
 repository-code: "https://github.com/michael-berardi/champollion"
 license: CC-BY-4.0
