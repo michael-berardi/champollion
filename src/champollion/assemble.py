@@ -8,6 +8,7 @@ from typing import Any, List, Tuple
 from .checks.numbering import extract_markers
 from .findings import ChampollionError
 from .packets import selected_register, numbering_policy
+from .sources import mkdir_private, restrict_file
 
 
 def read_responses(directory: str) -> List[Tuple[str, str]]:
@@ -90,9 +91,10 @@ def assemble_work(work: Any, profile: Any, register_id: str, directory: str, roo
             output = source.rstrip() + "\n\n" + merged
         if destination.parent.is_symlink():
             raise ChampollionError(f'{destination.parent}: assembly output directory is a symlink', cause='IO')
-        destination.parent.mkdir(parents=True, exist_ok=True)
+        mkdir_private(destination.parent)
         with destination.open("x", encoding="utf-8", newline="\n") as handle:
             handle.write(output)
+        restrict_file(destination)
     except (OSError, UnicodeError) as exc:
         raise ChampollionError(f"{destination}: {exc}", cause="IO") from exc
     return {"work": work.slug, "register": register_id, "output": str(destination), "units": len(responses)}

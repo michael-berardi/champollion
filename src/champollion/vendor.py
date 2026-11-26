@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Optional
 
 from .findings import ChampollionError
-from .sources import read_json, write_json
+from .sources import mkdir_private, read_json, restrict_file, write_json
 
 from . import __version__ as VERSION
 
@@ -51,7 +51,7 @@ def vendor(into: str, tag: Optional[str] = None, today: Optional[str] = None) ->
         raise ChampollionError(f"{destination}: vendor destination already exists", cause="IO")
     generated = today or datetime.now(timezone.utc).date().isoformat()
     try:
-        destination.mkdir(parents=True)
+        mkdir_private(destination)
         copies = [(path, destination / path.relative_to(source)) for path in _files(source)]
         if source not in profiles.parents:
             copies.extend((path, destination / "profiles" / path.relative_to(profiles)) for path in _files(profiles))
@@ -62,8 +62,9 @@ def vendor(into: str, tag: Optional[str] = None, today: Optional[str] = None) ->
             if target in copied:
                 raise ChampollionError(f"{target}: duplicate vendor destination", cause="configuration")
             copied.add(target)
-            target.parent.mkdir(parents=True, exist_ok=True)
+            mkdir_private(target.parent)
             shutil.copyfile(original, target)
+            restrict_file(target)
         files = {path.relative_to(destination).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
                  for path in sorted(copied)}
     except OSError as exc:

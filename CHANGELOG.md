@@ -4,6 +4,23 @@ Changes are recorded in [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
 Champollion enforces mechanical requirements and records judgement (VER-1). It does not translate or certify sense. The dated 1.0.0 entry records release contents, not approval to publish; SPEC.md remains a working specification until publication is approved.
 
+## [1.9.1] - 2026-11-26
+
+### Added
+
+- README `## Privacy` section: states what (if anything) reaches the network, where local text is kept and how to remove it.
+- `tests/test_privacy.py`: fails if telemetry packages or tracking endpoints are reintroduced, if a default command opens a socket or starts a subprocess, if the renderer loses its offline flags, or if toolkit-written text is not owner-only.
+
+### Changed
+
+- Directories and files created for project text, packets, review records, vendored snapshots and exported books are owner-only (0700/0600). Existing files and directories the user made keep their permissions.
+- The Chrome/Chromium renderer used by `export` is launched with background networking, component updates, metrics, extensions and DNS disabled, and with `DO_NOT_TRACK=1`. It still reads only the local HTML page. Installers set `DO_NOT_TRACK=1` and run pip offline with no cache or version check.
+
+### Migration
+
+- Re-vendor v1.9.1 to adopt the tightened file permissions and offline renderer flags. No protocol, profile, rule ID, CLI flag or report-field change; existing work documents are not rewritten.
+- Rollback: re-vendor v1.9.0.
+
 ## [1.9.0] - 2026-11-25
 
 ### Added

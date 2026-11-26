@@ -8,6 +8,7 @@ import zipfile
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
+from ..sources import mkdir_private, restrict_file
 from .model import Book
 from .typeset import _sentence, prepare, COVER_CSS, Options, display_title, esc, human_date, is_flow, lang_attr, render_blocks, source_host, source_titles, unit_titles
 
@@ -227,7 +228,7 @@ def build_epub(book: Book, opts: Options, out_path: str, cover: Optional[Tuple[b
            '<guide>' + ('<reference type="cover" title="Cover" href="cover.xhtml"/>' if cover_png else "") + f'<reference type="text" title="Start" href="{first_href.split("#")[0]}"/></guide></package>')
     container = ('<?xml version="1.0" encoding="utf-8"?>\n<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">'
                  '<rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>')
-    Path(out_path).parent.mkdir(parents=True, exist_ok=True)
+    mkdir_private(Path(out_path).parent)
     stamp = (2026, 1, 1, 0, 0, 0)
     with zipfile.ZipFile(out_path, "w") as z:
         def put(name: str, data: bytes, stored: bool = False):
@@ -240,6 +241,7 @@ def build_epub(book: Book, opts: Options, out_path: str, cover: Optional[Tuple[b
         put("OEBPS/content.opf", opf.encode("utf-8"))
         for path, _, data, _ in files:
             put(f"OEBPS/{path}", data)
+    restrict_file(Path(out_path))
     return {"path": out_path, "bytes": Path(out_path).stat().st_size, "files": len(files) + 3}
 
 

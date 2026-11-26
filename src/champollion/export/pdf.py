@@ -9,15 +9,52 @@ import signal
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Sequence
 
 from ..findings import ChampollionError
+from ..sources import mkdir_private, restrict_file
 
 CANDIDATES = (
     "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
     "/Applications/Chromium.app/Contents/MacOS/Chromium",
     "google-chrome", "google-chrome-stable", "chromium", "chromium-browser", "chrome",
 )
+
+# Chrome is started only for a user-invoked export. These flags stop it from using the network
+# for its own updates, metrics or component downloads, and make every hostname unresolvable.
+# The rendered page is a local file: URI, so no DNS lookup is needed to print it.
+CHROME_OFFLINE_ARGS = (
+    "--disable-background-networking",
+    "--disable-component-update",
+    "--disable-default-apps",
+    "--disable-sync",
+    "--disable-domain-reliability",
+    "--disable-client-side-phishing-detection",
+    "--disable-breakpad",
+    "--disable-extensions",
+    "--disable-metrics",
+    "--no-default-browser-check",
+    "--host-resolver-rules=MAP * ~NOTFOUND",
+    "--disable-features=Translate,OptimizationHints,OptimizationGuideModelDownloading,MediaRouter,AutofillServerCommunication",
+)
+
+
+def _chrome_env() -> Dict[str, str]:
+    """Tell the renderer (and anything it starts) that tracking is not wanted."""
+    return {**os.environ, "DO_NOT_TRACK": "1"}
+
+
+def _chrome_args(profile: Path, extra: Sequence[str]) -> List[str]:
+    """Render flags shared by the PDF and cover paths; no flag here fetches anything."""
+    return ["--headless=new", "--disable-gpu", "--no-sandbox", "--no-first-run", "--hide-scrollbars",
+            *CHROME_OFFLINE_ARGS, f"--user-data-dir={profile}", "--allow-file-access-from-files", *extra]
+
+
+def _write_private_text(path: Path, text: str) -> None:
+    """Write the temporary HTML page with owner-only permissions from creation."""
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as handle:
+        handle.write(text)
 
 
 def find_chrome(explicit: Optional[str] = None) -> str:
@@ -33,7 +70,8 @@ def find_chrome(explicit: Optional[str] = None) -> str:
 
 def _run(args: List[str], timeout: int, output: Optional[Path] = None) -> None:
     """Run Chrome in its own process group so a hang takes its helper processes down with it."""
-    proc = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, start_new_session=True)
+    proc = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                            start_new_session=True, env=_chrome_env())
     try:
         _, stderr = proc.communicate(timeout=timeout)
     except subprocess.TimeoutExpired:
@@ -73,18 +111,18 @@ def html_to_pdf(html_text: str, out_pdf: str, chrome: str, timeout: int = 600, a
 def _print(html_text: str, out_pdf: str, chrome: str, timeout: int) -> None:
     with tempfile.TemporaryDirectory(prefix="champollion-") as tmp:
         page = Path(tmp) / "book.html"
-        page.write_text(html_text, "utf-8")
+        _write_private_text(page, html_text)
         profile = Path(tmp) / "profile"
         tmp_pdf = Path(tmp) / "book.pdf"
-        _run([chrome, "--headless=new", "--disable-gpu", "--no-sandbox", "--no-first-run", "--hide-scrollbars",
-              f"--user-data-dir={profile}", "--no-pdf-header-footer", "--allow-file-access-from-files",
-              "--virtual-time-budget=120000", "--run-all-compositor-stages-before-draw",
-              f"--print-to-pdf={tmp_pdf}", page.as_uri()], timeout, tmp_pdf)
+        flags = _chrome_args(profile, ("--no-pdf-header-footer", "--virtual-time-budget=120000",
+                                       "--run-all-compositor-stages-before-draw", f"--print-to-pdf={tmp_pdf}"))
+        _run([chrome, *flags, page.as_uri()], timeout, tmp_pdf)
         if not tmp_pdf.is_file() or tmp_pdf.stat().st_size < 1000:
             raise ChampollionError("chrome produced no PDF", cause="ENGINE-FAILED")
         _normalize_chrome_dates(tmp_pdf)
-        Path(out_pdf).parent.mkdir(parents=True, exist_ok=True)
+        mkdir_private(Path(out_pdf).parent)
         shutil.move(str(tmp_pdf), out_pdf)
+        restrict_file(out_pdf)
 
 
 def _normalize_chrome_dates(pdf: Path) -> None:
@@ -198,6 +236,7 @@ def _normalize_chrome_dates(pdf: Path) -> None:
             bad()
         result[base + start:base + stop] = replacement
     pdf.write_bytes(result)
+    restrict_file(pdf)
 
 
 def html_to_png(html_text: str, chrome: str, width: int, height: int, scale: float = 2.5, timeout: int = 120,
@@ -214,11 +253,12 @@ def html_to_png(html_text: str, chrome: str, width: int, height: int, scale: flo
 def _screenshot(html_text: str, chrome: str, width: int, height: int, scale: float, timeout: int) -> bytes:
     with tempfile.TemporaryDirectory(prefix="champollion-") as tmp:
         page = Path(tmp) / "cover.html"
-        page.write_text(html_text, "utf-8")
+        _write_private_text(page, html_text)
         tmp_png = Path(tmp) / "cover.png"
-        _run([chrome, "--headless=new", "--disable-gpu", "--no-sandbox", "--no-first-run", "--hide-scrollbars",
-              f"--user-data-dir={Path(tmp) / 'profile'}", "--allow-file-access-from-files", f"--window-size={width},{height}",
-              f"--force-device-scale-factor={scale}", "--virtual-time-budget=20000", f"--screenshot={tmp_png}", page.as_uri()], timeout, tmp_png)
+        flags = _chrome_args(Path(tmp) / "profile", (f"--window-size={width},{height}",
+                                                     f"--force-device-scale-factor={scale}",
+                                                     "--virtual-time-budget=20000", f"--screenshot={tmp_png}"))
+        _run([chrome, *flags, page.as_uri()], timeout, tmp_png)
         if not tmp_png.is_file():
             raise ChampollionError("chrome produced no screenshot", cause="ENGINE-FAILED")
         return tmp_png.read_bytes()

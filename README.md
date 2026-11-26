@@ -27,7 +27,7 @@ The installer verifies the release wheel's SHA-256 and installs it in a private 
 In an activated virtual environment, with Git installed:
 
 ```sh
-python3 -m pip install "champollion-protocol @ git+https://github.com/michael-berardi/champollion.git@v1.9.0"
+python3 -m pip install "champollion-protocol @ git+https://github.com/michael-berardi/champollion.git@v1.9.1"
 ```
 
 On Windows use `python` instead of `python3`. Pip may download build tooling.
@@ -47,6 +47,22 @@ champollion report --root examples/latin-to-spanish --json
 On Windows, create the environment with `py -3 -m venv .venv`, activate it with `.\.venv\Scripts\Activate.ps1`, and use `python` instead of `python3`.
 
 The example has no mechanical errors, but its publication gate stays blocked because editorial review has not been recorded.
+
+## Privacy
+
+Nothing is sent over the network by the toolkit itself. There is no telemetry, analytics, crash reporting, licence check or update check.
+
+Network use happens only when you start it:
+
+- The install commands download the installer, `SHA256SUMS` and the release wheel from GitHub. The wheel's SHA-256 is checked before pip installs it offline with `--no-index`; pip's version check and cache are off.
+- `champollion source add --url ...` does not fetch the URL. It prints a `curl` command for you to run or skip.
+- `champollion export` starts a Chrome/Chromium already installed on this machine to render a local HTML page. That browser is launched with background networking, component updates, metrics and DNS disabled, and with `DO_NOT_TRACK=1`; the book is not uploaded.
+- A source URL or a `--site-url` you supply is written into the book's metadata as text; nothing opens it during export.
+- If you send packets or books to a reviewer or model provider of your choosing, that third party receives what you send it. Champollion does not contact that provider.
+
+Locally, `champollion init` writes `champollion.json`, `profiles/`, `sources/manifest.json` and `works/` in the project folder. Source snapshots go under `sources/raw/`; packets, reviewer replies, review records and exported books go where you direct them. Files and directories the toolkit creates for that text are owner-only (0600 files, 0700 directories). The installer keeps a Python environment in `~/.champollion` (Windows: `%LOCALAPPDATA%\Champollion`) and a command shim in `~/.local/bin` (Windows: the tool's `bin` folder). Export uses a temporary browser profile that is deleted when it finishes. No logs, history or transcripts are stored; Python bytecode caches contain code, not your text.
+
+To delete your data, remove the project folders you created and, if you used the installer, `~/.champollion` and the `champollion` shim on your PATH (Windows: `%LOCALAPPDATA%\Champollion`).
 
 ## Start a translation
 

@@ -10,6 +10,9 @@
 function Install-Champollion {
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'   # the progress bar makes downloads very slow on Windows PowerShell 5.1
+# No analytics in the installer or pip. Restore the caller's value when the function finishes.
+$oldDoNotTrack = $env:DO_NOT_TRACK
+$env:DO_NOT_TRACK = '1'
 $Repo = 'https://github.com/michael-berardi/champollion'
 $ShimMarker = 'champollion-installer-shim'
 $base = if ($env:CHAMPOLLION_RELEASE_BASE) { $env:CHAMPOLLION_RELEASE_BASE }
@@ -86,7 +89,7 @@ try {
   if ($r.Code -ne 0) { throw 'python -m venv failed; on Debian/Ubuntu install the venv module with: sudo apt-get install -y python3-venv, then run this again.' }
   $venvPython = if ($onWindows) { Join-Path $stage 'Scripts\python.exe' } else { Join-Path $stage 'bin/python' }
   # The package has no dependencies (pyproject: dependencies = []), so --no-index: nothing is fetched from PyPI.
-  $r = Invoke-Native $venvPython @('-m', 'pip', 'install', '--no-index', '--disable-pip-version-check', '--quiet', $wheelPath)
+  $r = Invoke-Native $venvPython @('-m', 'pip', 'install', '--no-index', '--no-cache-dir', '--disable-pip-version-check', '--quiet', $wheelPath)
   if ($r.Code -ne 0) { throw "pip could not install $wheelName into the new venv; nothing was changed" }
   $r = Invoke-Native $venvPython @('-c', 'from importlib.metadata import version; print(version("champollion-protocol"))')
   if ($r.Code -ne 0) { throw 'the new copy does not report its version; nothing was changed' }
@@ -175,6 +178,8 @@ try {
   Write-Host "Champollion $version installed ($shim)."
   Write-Host 'Next: champollion init my-translation'
 } finally {
+  if ($null -eq $oldDoNotTrack) { Remove-Item Env:\DO_NOT_TRACK -ErrorAction SilentlyContinue }
+  else { $env:DO_NOT_TRACK = $oldDoNotTrack }
   Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
   if (Test-Path $stage) { Remove-Item -Recurse -Force $stage -ErrorAction SilentlyContinue }
 }
