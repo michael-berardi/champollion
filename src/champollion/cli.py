@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import shlex
 import sys
 from dataclasses import replace
 from datetime import datetime, timezone
@@ -131,6 +132,14 @@ def _parser() -> argparse.ArgumentParser:
     verify = commands.add_parser("verify-vendor")
     verify.add_argument("directory", nargs="?", default=".")
     _json_flag(verify)
+    update = commands.add_parser("update", help="check for and install a newer stable release")
+    action = update.add_mutually_exclusive_group()
+    action.add_argument("--check", action="store_true", help="report only: exit 0 current, 10 available, 1 failed")
+    action.add_argument("--skip", action="store_true", help="hide the notice for this version")
+    action.add_argument("--auto", choices=("on", "off", "status"), help="install future updates automatically")
+    action.add_argument("--rollback", action="store_true", help="restore the version kept by the last update")
+    action.add_argument("--auto-install", action="store_true", help=argparse.SUPPRESS)
+    _json_flag(update)
     review = commands.add_parser("review", help="source-language review: packets, second reading, guarded apply, record")
     review_sub = review.add_subparsers(dest="review_command", required=True)
     rp = review_sub.add_parser("packets", help="write one deterministic reviewer packet per passage")
@@ -378,8 +387,74 @@ def _review(args: argparse.Namespace) -> int:
     return 0
 
 
+def _update(args: argparse.Namespace) -> int:
+    from . import __version__, updates
+    if args.auto_install:
+        return updates.auto_install()
+    if args.auto:
+        if args.auto != "status":
+            updates.save_state(auto=args.auto == "on", asked_auto=True)
+        status = updates.auto_status()
+        lines = [f"check for updates automatically: {'on' if status['check_automatically'] else 'off'}",
+                 f"install updates automatically: {'on' if status['install_automatically'] else 'off'}",
+                 f"version {__version__}"]
+        if status["last_auto_error"]:
+            lines.append(f"last automatic install failed: {status['last_auto_error']}")
+        _emit(status, args.json, "\n".join(lines))
+        return 0
+    if args.rollback:
+        _emit(updates.rollback_install(), args.json, "restored the previous version; it applies next run")
+        return 0
+    if args.skip:
+        version = updates.skip_current()
+        _emit({"skipped": version}, args.json, f"skipped {version}; a newer release will notify again"
+              if version else f"champollion {__version__} is current")
+        return 0
+    result = updates.check_now()
+    status, latest = result["status"], result["latest"]
+    if args.check:
+        if args.json:
+            _emit({"status": status, "latest": latest, "cause": result["cause"], "current": __version__}, True, "")
+        elif status == "failed":
+            print(f"champollion: update check failed: {result['cause']}", file=sys.stderr)
+        elif status == "available":
+            print(f"champollion {latest} available (you have {__version__})")
+        else:
+            print(f"champollion {__version__} is current")
+        return {"current": 0, "available": 10}.get(status, 1)
+    if status == "failed":
+        raise ChampollionError(f"update check failed: {result['cause']}", cause="update")
+    if status != "available":
+        _emit({"current": __version__, "status": status}, args.json, f"champollion {__version__} is current")
+        return 0
+    kind, notes = updates.detect_install_kind(), updates.release_notes(result["notes"])
+    interactive = not args.json and sys.stdin.isatty() and sys.stderr.isatty()
+    if not args.json:
+        print(f"champollion {latest} available (you have {__version__})")
+        if notes:
+            print(notes)
+        if kind in updates.MANAGERS:
+            print("runs: " + shlex.join(updates.manager_command(kind, result["tag"])))
+    updates.refuse_install(kind)
+    if interactive and updates.ask(f"Install {latest} now? [Y/n] ") not in ("", "y", "yes"):
+        return 0
+    installed = updates.install(kind, latest, result["tag"])
+    if args.json:
+        _emit({"current": __version__, "new": latest, "notes": notes, "install_kind": kind,
+               "installed": installed}, True, "")
+        return 0
+    print(f"installed champollion {latest}; it applies next run")
+    state = updates.load_state()
+    if interactive and not state.get("auto") and not state.get("asked_auto") and updates.can_self_update(kind):
+        answer = updates.ask("Install future updates automatically? [y/N] ")
+        updates.save_state(auto=answer in ("y", "yes"), asked_auto=True)
+    return 0
+
+
 def _dispatch(args: argparse.Namespace) -> int:
     command = args.command
+    if command == "update":
+        return _update(args)
     if command == "summary":
         return _summary(args)
     if command == "review":
@@ -473,13 +548,18 @@ def _dispatch(args: argparse.Namespace) -> int:
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
-    """Run a documented command, returning 0/1/2 and naming operational errors."""
+    """Run a documented command, returning 0/1/2/10 and naming operational errors."""
+    arguments = list(sys.argv[1:] if argv is None else argv)
     try:
         try:
-            args = _parser().parse_args(argv)
+            args = _parser().parse_args(arguments)
         except SystemExit as exc:
             return int(exc.code)
-        return _dispatch(args)
+        from . import updates
+        pending = updates.start_check(arguments)
+        code = _dispatch(args)
+        updates.after_command(pending, args.command, code)
+        return code
     except ChampollionError as exc:
         print(f"champollion: {exc.cause or 'operational-error'}: {exc}", file=sys.stderr)
         return 2

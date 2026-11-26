@@ -4,6 +4,20 @@ Changes are recorded in [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
 Champollion enforces mechanical requirements and records judgement (VER-1). It does not translate or certify sense. The dated 1.0.0 entry records release contents, not approval to publish; SPEC.md remains a working specification until publication is approved.
 
+## [1.10.0] - 2026-11-26
+
+### Added
+
+- Update notice (update contract v1): at most once a day, in interactive terminals only, one anonymous GET of the repository's public GitHub latest-release record; a two-line notice on stderr after the command. Off without a TTY, in CI, under agent hosts, for `--json`, from source checkouts and vendored snapshots, and with `CHAMPOLLION_NO_UPDATE_CHECK=1`. See `docs/updates.md`.
+- `champollion update` with `--check` (exit 0 current, 10 available, 1 failed), `--skip`, `--auto on|off|status` and `--rollback`. Installer copies verify the wheel against the release's `SHA256SUMS` before a staged swap and keep one rollback copy; pip, uv and pipx copies run their package manager pinned to the release tag.
+- Automatic installs, off by default: one detached, low-priority install per new version, a log under 256 KB, and the notice again if it fails.
+- `PRIVACY.md` and a short README Privacy section.
+
+### Migration
+
+- No checker, profile, rule ID, report field or protocol version change. State lives in one owner-only `update.json` in the platform cache folder.
+- Rollback: re-vendor v1.9.0.
+
 ## [1.9.0] - 2026-11-25
 
 ### Added

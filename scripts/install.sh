@@ -76,7 +76,8 @@ mkdir -p "$HOME_DIR" "$BIN_DIR" || die "cannot create $HOME_DIR or $BIN_DIR"
 VENV="$HOME_DIR/venv"
 STAGE="$HOME_DIR/venv.tmp.$$"
 rm -rf "$STAGE"
-"$PYTHON" -m venv "$STAGE" || die "python3 -m venv failed; on Debian/Ubuntu install the venv module with: sudo apt-get install -y python3-venv, then run this again"
+# TMPDIR: ensurepip on Python 3.9 leaves a cacert.pem behind; keep it in the folder the trap removes.
+TMPDIR="$TMP" "$PYTHON" -m venv "$STAGE" || die "python3 -m venv failed; on Debian/Ubuntu install the venv module with: sudo apt-get install -y python3-venv, then run this again"
 # The package has no dependencies (pyproject: dependencies = []), so --no-index: nothing is fetched from PyPI.
 "$STAGE/bin/python" -m pip install --no-index --disable-pip-version-check --quiet "$TMP/$WHEEL" \
   || die "pip could not install $WHEEL into the new venv; nothing was changed"
