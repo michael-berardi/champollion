@@ -10,6 +10,8 @@ Champollion enforces mechanical requirements and records judgement (VER-1). It d
 
 - Recorded the contract §4a rollback gap in `docs/updates.md`: one installer-managed rollback environment (`venv.previous`) is retained indefinitely with no first-run or seven-day cleanup and must be removed manually; `update --auto off` stops automatic installs but does not delete the rollback copy. No update behavior changed.
 - The pip installation example now points at the published `v1.10.0` tag instead of the unpublished `v1.10.1` branch version.
+- Noted in `docs/updates.md`, `CONTRIBUTING.md` and `docs/adopting.md` that the vendoring instructions still name the `v1.10.1` tag, which is unpublished until this branch is released; until then, vendor from a reviewed local checkout of the selected release. The `vendor`/`verify-vendor` commands, versions and behavior are unchanged.
+- Noted in `docs/updates.md` that the README Privacy section is intentionally longer than the contract's 3-6 short lines, so the release check, installer routes, offline renderer and owner-only file boundaries remain accurate. No privacy claim or behavior changed.
 
 ## [1.10.1] - 2026-11-26
 

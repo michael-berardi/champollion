@@ -107,3 +107,17 @@ choose; installer-managed code remains under the private install home. If you
 opt out, the CLI makes no update request at all. See the [Privacy section of the
 README](../README.md#privacy) for the rest of the toolkit's network and file
 behaviour.
+
+## Documentation deviations
+
+- **Unpublished vendor tag.** The vendoring instructions in `CONTRIBUTING.md`,
+  `docs/adopting.md` and the `make vendor` shortcut name the `v1.10.1` tag. That
+  tag is not published until this branch is released. Until then, vendor from a
+  reviewed local checkout of the selected release and record its commit in
+  `VENDOR.json`. This is a documentation timing note only: `vendor`,
+  `verify-vendor`, version metadata and the release check are unchanged.
+- **README Privacy length.** The contract asks for 3-6 short lines in the README
+  Privacy section. This project keeps a detailed section instead: the anonymous
+  release check, installer routes, offline renderer and owner-only local-file
+  boundaries each need an accurate statement. The privacy guarantees are not
+  relaxed, and no behavior or version changed.

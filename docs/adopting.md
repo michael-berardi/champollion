@@ -76,6 +76,11 @@ champollion verify-vendor vendor/champollion
 python3 vendor/champollion/__main__.py rules
 ```
 
+`v1.10.1` is the tag for this branch and is **not published yet**: until the
+branch is released, vendor from a reviewed local checkout of the selected
+release and record its commit in `VENDOR.json`. This note does not change the
+`vendor` command or its behavior.
+
 `--into vendor` creates `vendor/champollion`; do not repeat `champollion` in the
 argument. Retain `VENDOR.json`, including its upstream label and file hashes. The
 label is a record of the selected release, not cryptographic proof of its origin.
