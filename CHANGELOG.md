@@ -4,6 +4,23 @@ Changes are recorded in [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
 Champollion enforces mechanical requirements and records judgement (VER-1). It does not translate or certify sense. The dated 1.0.0 entry records release contents, not approval to publish; SPEC.md remains a working specification until publication is approved.
 
+## [1.10.0] - 2026-11-26
+
+### Added
+
+- `champollion update --check|--skip|--auto on|off|status|--rollback` and a post-command release notice on stderr. In an interactive terminal, a check runs at most once per 24 hours: one anonymous GET to the repository's public latest-release record with the fixed `champollion-update-check` User-Agent and a 3-second timeout. Only strictly newer stable `x.y.z` releases are announced; failures are cached with their cause and shown by `update --check`.
+- `docs/updates.md` with the `<!-- update-contract: v1 -->` marker, a README Updates section, and `tests/test_updates.py` covering version comparison, daily cache, skip, auto persistence, non-TTY/CI/agent/opt-out silence, notice placement, checksum refusal and rollback.
+- Automatic installs are opt-in (`update --auto on`, the first-install question, or the tool's config). The check never runs in CI, non-TTY, headless/`--json` or agent mode; `CHAMPOLLION_NO_UPDATE_CHECK=1` and an `updates.check` config switch turn it off.
+
+### Changed
+
+- Install updates verify the release wheel against `SHA256SUMS`, stage and health-check a private venv, swap it atomically, keep one `venv.previous` rollback and log failures. Package-manager installs are detected and named by command instead of being overwritten. A failed install leaves the current version working and falls back to the notice.
+- The README Privacy section now describes the one anonymous release request; the pre-existing no-telemetry, offline-renderer and 0600/0700 local-file guarantees are unchanged.
+
+### Migration
+
+- New CLI command and preference/cache files only: no protocol, profile, rule ID, report field or work-document change. Auto-install stays off unless you opt in; existing installs behave as before with checks off outside a terminal. Rollback: re-vendor v1.9.1, or run `champollion update --rollback` for an installer-managed copy.
+
 ## [1.9.1] - 2026-11-26
 
 ### Added

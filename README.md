@@ -27,7 +27,7 @@ The installer verifies the release wheel's SHA-256 and installs it in a private 
 In an activated virtual environment, with Git installed:
 
 ```sh
-python3 -m pip install "champollion-protocol @ git+https://github.com/michael-berardi/champollion.git@v1.9.1"
+python3 -m pip install "champollion-protocol @ git+https://github.com/michael-berardi/champollion.git@v1.10.0"
 ```
 
 On Windows use `python` instead of `python3`. Pip may download build tooling.
@@ -50,10 +50,11 @@ The example has no mechanical errors, but its publication gate stays blocked bec
 
 ## Privacy
 
-Nothing is sent over the network by the toolkit itself. There is no telemetry, analytics, crash reporting, licence check or update check.
+Nothing is sent over the network by the toolkit itself except the anonymous release check described below. There is no telemetry, analytics, crash reporting or licence check.
 
 Network use happens only when you start it:
 
+- In an interactive terminal, each command checks once every 24 hours whether a newer stable release exists: one anonymous GET to the repository's public GitHub latest-release record, with the fixed `champollion-update-check` User-Agent and no identity, version, usage or machine data. The timeout is 3 seconds; failures are cached locally with their cause and shown only by `champollion update --check`. Checks are off in CI, non-TTY/headless/agent use, with `CHAMPOLLION_NO_UPDATE_CHECK=1`, or when `updates.check` is false in the tool's config. Automatic installing is opt-in and off by default.
 - The installer scripts download the installer, `SHA256SUMS` and the release wheel from GitHub. The wheel's SHA-256 is checked before the installer's pip installs it offline with `--no-index`, with pip's version check and cache off.
 - The `pip install ...git+...` and `pip install .` routes are plain pip: pip contacts GitHub (git form) and may download build tooling from PyPI. The checksum and offline flags above apply only to the installer scripts.
 - `champollion source add --url ...` does not fetch the URL. It prints a `curl` command for you to run or skip.
@@ -64,6 +65,10 @@ Network use happens only when you start it:
 Locally, `champollion init` writes `champollion.json`, `profiles/`, `sources/manifest.json` and `works/` in the project folder. Source snapshots go under `sources/raw/`; packets, reviewer replies, review records and exported books go where you direct them. Files and directories the toolkit creates for that text are owner-only (0600 files, 0700 directories) on macOS and Linux; on Windows, access follows the folder's own permissions. The installer keeps a Python environment in `~/.champollion` (Windows: `%LOCALAPPDATA%\Champollion`) and a command shim in `~/.local/bin` (Windows: the tool's `bin` folder). Export uses a temporary browser profile that is deleted when it finishes. No logs, history or transcripts are stored; Python bytecode caches contain code, not your text.
 
 To delete your data, remove the project folders you created and, if you used the installer, `~/.champollion` and the `champollion` shim on your PATH (Windows: `%LOCALAPPDATA%\Champollion`).
+
+## Updates
+
+`champollion update --check` reports the current and latest stable release (exit 0 current, 10 available, 1 failed); `champollion update` offers the install; `champollion update --skip` hides one version's notice; `champollion update --auto on|off|status` controls the opt-in automatic install. See [docs/updates.md](docs/updates.md) for the full privacy, prompt, install-safety and rollback behaviour.
 
 ## Start a translation
 

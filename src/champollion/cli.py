@@ -50,6 +50,15 @@ def _parser() -> argparse.ArgumentParser:
         check.add_argument("--strict", action="store_true")
         check.add_argument("--quiet", action="store_true")
         _json_flag(check)
+    update = commands.add_parser("update", help="check for or install a newer Champollion release")
+    action = update.add_mutually_exclusive_group()
+    action.add_argument("--check", action="store_true", help="report only; 0 current, 10 available, 1 failed")
+    action.add_argument("--skip", action="store_true", help="hide this version's notice until a newer release")
+    action.add_argument("--auto", nargs="?", const="status", choices=("on", "off", "status"),
+                        help="on/off/status for opt-in automatic installs")
+    action.add_argument("--rollback", action="store_true", help="restore the previous installer-managed venv")
+    update.add_argument("--yes", action="store_true", help="do not ask before installing")
+    _json_flag(update)
     packets = commands.add_parser("packets")
     packets.add_argument("--register")
     packets.add_argument("--units")
@@ -378,8 +387,95 @@ def _review(args: argparse.Namespace) -> int:
     return 0
 
 
+def _update(args: argparse.Namespace) -> int:
+    from . import updates
+    config = updates.load_config()
+    if args.auto:
+        if args.auto == "status":
+            cache = updates.load_cache()
+            state = {"automatic_checks": bool(config["check"]),
+                     "automatic_installs": bool(config["auto"]),
+                     "skipped_version": config.get("skipped_version", ""),
+                     "last_error": cache.get("last_error", "")}
+            _emit(state, args.json,
+                  f"automatic checks: {'on' if state['automatic_checks'] else 'off'}; "
+                  f"automatic installs: {'on' if state['automatic_installs'] else 'off'}" +
+                  (f"; skipped: {state['skipped_version']}" if state['skipped_version'] else "") +
+                  (f"; last failure: {state['last_error']}" if state['last_error'] else ""))
+            return 0
+        updates.set_auto(args.auto)
+        _emit({"auto": args.auto == "on"}, args.json,
+              f"automatic installs turned {args.auto}")
+        return 0
+    if args.skip:
+        result = updates.check_now()
+        if result["status"] == "failed":
+            print(f"champollion: update check failed: {result['cause']}", file=sys.stderr)
+            return 1
+        version = result.get("latest") or updates.load_cache().get("latest_version", "")
+        if not version:
+            print("champollion: usage: no checked version to skip; run 'champollion update --check' first",
+                  file=sys.stderr)
+            return 2
+        updates.skip_version(version)
+        _emit({"skipped": version}, args.json, f"notice for {version} skipped until a newer release")
+        return 0
+    if args.rollback:
+        result = updates.rollback()
+        updates.log_install(result)
+        _emit(result, args.json,
+              "restored the previous install" if result["ok"] else f"rollback failed: {result['cause']}")
+        return 0 if result["ok"] else 2
+    result = updates.check_now()
+    cache = updates.load_cache()
+    if args.check:
+        _emit(updates.report_json(result, config, cache), args.json,
+              updates.report_text(result, config, cache))
+        return {"failed": 1, "update": updates.UPDATE_EXIT, "current": 0}[result["status"]]
+    if result["status"] == "failed":
+        print(f"champollion: update check failed: {result['cause']}", file=sys.stderr)
+        return 1
+    if result["status"] == "current":
+        _emit(updates.report_json(result, config, cache), args.json, updates.report_text(result, config, cache))
+        return 0
+    lines = [f"current: {result['current']}", f"available: {result['latest']}"]
+    notes = "\n".join(line.strip() for line in result.get("notes", "").splitlines()[:8] if line.strip())
+    if notes:
+        lines.append("release notes:")
+        lines.extend("  " + line for line in notes.splitlines())
+    plan = updates.install_plan(result)
+    if plan["command"]:
+        lines.append(f"install command: {plan['command']}")
+    interactive = not args.json and not args.yes and sys.stdin.isatty() and sys.stdout.isatty()
+    if interactive:
+        print("\n".join(lines))
+        answer = input(f"Install {result['latest']} now? [Y/n] ").strip().lower()
+        if answer in ("n", "no"):
+            print("no install performed")
+            return 0
+    elif not args.json:
+        print("\n".join(lines))
+        print("no terminal: proceeding with the explicit install request")
+    outcome = updates.install_release(result)
+    updates.log_install(outcome)
+    if args.json:
+        _emit(outcome, True, "")
+    else:
+        print("installed " + outcome["version"] if outcome["ok"] else f"install failed: {outcome['cause']}")
+    if not outcome["ok"]:
+        return 2
+    config = updates.load_config()
+    if (interactive and not config["auto"] and not config["auto_prompted"]):
+        answer = input("Install future updates automatically? [y/N] ").strip().lower()
+        updates.set_auto("on" if answer in ("y", "yes") else "off")
+        print("automatic installs " + ("on" if answer in ("y", "yes") else "off"))
+    return 0
+
+
 def _dispatch(args: argparse.Namespace) -> int:
     command = args.command
+    if command == "update":
+        return _update(args)
     if command == "summary":
         return _summary(args)
     if command == "review":
@@ -474,12 +570,16 @@ def _dispatch(args: argparse.Namespace) -> int:
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
     """Run a documented command, returning 0/1/2 and naming operational errors."""
+    supplied = list(sys.argv[1:] if argv is None else argv)
+    args = None
+    status = 2
     try:
         try:
-            args = _parser().parse_args(argv)
+            args = _parser().parse_args(supplied)
         except SystemExit as exc:
             return int(exc.code)
-        return _dispatch(args)
+        status = _dispatch(args)
+        return status
     except ChampollionError as exc:
         print(f"champollion: {exc.cause or 'operational-error'}: {exc}", file=sys.stderr)
         return 2
@@ -489,3 +589,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     except (ValueError, TypeError) as exc:
         print(f"champollion: schema: {exc}", file=sys.stderr)
         return 2
+    finally:
+        # An update check is never part of startup and never changes the command's
+        # exit status or stdout. It only runs after a successful interactive command.
+        try:
+            from . import updates
+            updates.finish_background_check(supplied, status)
+        except Exception:
+            pass
