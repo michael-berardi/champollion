@@ -4,6 +4,13 @@ Changes are recorded in [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
 Champollion enforces mechanical requirements and records judgement (VER-1). It does not translate or certify sense. The dated 1.0.0 entry records release contents, not approval to publish; SPEC.md remains a working specification until publication is approved.
 
+## Unreleased
+
+### Documentation
+
+- Recorded the contract §4a rollback gap in `docs/updates.md`: one installer-managed rollback environment (`venv.previous`) is retained indefinitely with no first-run or seven-day cleanup and must be removed manually; `update --auto off` stops automatic installs but does not delete the rollback copy. No update behavior changed.
+- The pip installation example now points at the published `v1.10.0` tag instead of the unpublished `v1.10.1` branch version.
+
 ## [1.10.1] - 2026-11-26
 
 ### Fixed

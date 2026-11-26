@@ -80,6 +80,19 @@ then swap it into place. The prior environment is kept once as `venv.previous`
 for `champollion update --rollback`; a failed swap restores it. A checksum
 mismatch refuses the install and changes nothing.
 
+### Known gap in contract §4a
+
+Contract §4a asks for a rollback copy to be deleted after the new version has
+run successfully once, and at the latest within seven days; it also asks
+`update --auto off` to clear saved auto state. This build does **not** implement
+that cleanup. An installer-managed swap keeps its single rollback environment
+(`venv.previous` in the private install home) **indefinitely**: there is no
+first-successful-run check and no seven-day expiry. Remove that directory
+manually when you no longer need it, or run `champollion update --rollback` to
+restore it first. `champollion update --auto off` sets the saved automatic-install
+preference to off and stops future automatic installs, but it **does not delete
+the rollback copy** and does not start any timed cleanup.
+
 Package-manager installs are detected instead of overwritten. The prompt names
 the right command (`uv tool upgrade champollion-protocol`,
 `python3 -m pip install --upgrade "champollion-protocol @ git+…@vX"`, or the
