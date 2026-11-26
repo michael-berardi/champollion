@@ -13,7 +13,7 @@ Champollion enforces mechanical requirements and records judgement (VER-1). It d
 
 ### Changed
 
-- Directories and files created for project text, packets, review records, vendored snapshots and exported books are owner-only (0700/0600). Existing files and directories the user made keep their permissions.
+- Directories and files created for project text, packets, review records, vendored snapshots and exported books are owner-only (0700/0600). Existing directories keep their mode; files the toolkit rewrites become 0600. On Windows these modes do not narrow access; the folder's permissions apply.
 - The Chrome/Chromium renderer used by `export` is launched with background networking, component updates, metrics, extensions and DNS disabled, and with `DO_NOT_TRACK=1`. It still reads only the local HTML page. Installers set `DO_NOT_TRACK=1` and run pip offline with no cache or version check.
 
 ### Migration
