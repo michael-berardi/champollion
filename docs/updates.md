@@ -15,10 +15,14 @@ settings sheet or rendered UI for updates. Automatic checks never add text to
   `champollion-update-check`. No identity, version, usage, machine data or local
   file content is sent. Drafts, prereleases, malformed tags and equal or older
   versions are ignored.
-- The check runs after the command, in a background thread with a 3-second
-  timeout. Failures are recorded in a shared, owner-only (0600) cache file with
-  their cause, are never printed as noise and are never retried in a loop.
-  `champollion update --check` shows the recorded cause.
+- After a successful interactive command, the check is handed to a **detached,
+  low-priority one-shot helper process**. The CLI does not wait for it and does
+  not block on the network: the helper's single GET has a 3-second timeout. Its
+  result is recorded in a shared, owner-only (0600) cache file with any cause,
+  never printed as noise and never retried in a loop. An in-flight claim in
+  the cache prevents a second command from starting a duplicate helper. A due
+  notice from a previous check is shown on the next interactive command;
+  `champollion update --check` remains synchronous and shows the recorded cause.
 - Checks are off when stdout or stderr is not a TTY, when `CI` is set, in
   headless/print mode (`--json`), in agent mode, or when opted out.
 - Opt out with `CHAMPOLLION_NO_UPDATE_CHECK=1` for one shell, or set
@@ -55,11 +59,18 @@ survives upgrades.
 
 ## Automatic installs (opt-in)
 
-When automatic installs are on, the daily check that finds a newer stable
-release installs it in a detached, low-priority background task, logged in the
-tool's cache directory. The new version applies on the next invocation; running
-work is never swapped underneath a process. A failed install leaves the current
-version working, records its cause and falls back to the stderr notice.
+When automatic installs are on, the same detached helper performs the install
+instead of printing a notice. It has a real bounded budget (five minutes total
+for downloads, staging, the health check and the swap), is low priority, and
+writes one install log capped at 256 KB in the tool's cache directory. The new
+version applies on the next invocation; running work is never swapped underneath
+a process. Downloads and staging live in one temporary folder inside the
+private install home and are removed on success, failure or a refused swap, so
+a failed install leaves neither a half-built environment nor stale `venv.next.*`
+directories. A failed install leaves the current version working, records its
+cause and falls back to a notice on the next interactive command. If the helper
+cannot start at all, the failure is recorded with its cause and nothing is
+staged.
 
 ## Install safety
 

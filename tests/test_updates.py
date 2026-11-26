@@ -13,6 +13,8 @@ import io
 import json
 import os
 import stat
+import subprocess
+import sys
 import tempfile
 import time
 import unittest
@@ -178,21 +180,77 @@ class CheckTests(UpdateCase):
             updates.finish_background_check(["rules"], 0)
             fetch.assert_not_called()
 
-    def test_auto_install_success_suppresses_notice(self):
-        result = {"status": "update", "current": "1.9.1", "latest": "1.11.0", "notes": "",
-                  "checked_at": 1000.0, "cause": "", "assets": []}
+    def test_background_check_is_detached_and_never_blocks_cli(self):
         stderr = io.StringIO()
         with mock.patch.object(updates, "check_allowed", return_value=True), \
-             mock.patch.object(updates, "load_config", return_value={"check": True, "auto": True}), \
-             mock.patch.object(updates, "automatic_check_due", return_value=True), \
-             mock.patch.object(updates, "check_now", return_value=result), \
-             mock.patch.object(updates, "record_check"), \
-             mock.patch.object(updates, "auto_install") as install, \
-             mock.patch.object(updates, "load_cache", return_value={"last_install": {"ok": True}}), \
+             mock.patch.object(updates, "check_now") as fetch, \
+             mock.patch.object(updates, "start_background_check", return_value=True) as spawn, \
              contextlib.redirect_stderr(stderr):
             updates.finish_background_check(["rules"], 0)
-        install.assert_called_once_with(result)
+        fetch.assert_not_called()
+        spawn.assert_called_once_with()
         self.assertEqual(stderr.getvalue(), "")
+
+    def test_detached_worker_has_no_tty_and_is_not_waited_on(self):
+        with mock.patch.object(updates.subprocess, "Popen") as popen:
+            self.assertTrue(updates.start_background_check())
+        argv, options = popen.call_args
+        self.assertEqual(argv[0], [sys.executable, "-m", "champollion.updates", updates.WORKER_ARG])
+        self.assertEqual(options["env"][updates.BACKGROUND_FLAG], "1")
+        self.assertEqual(options["stdout"], subprocess.DEVNULL)
+        self.assertEqual(options["stderr"], subprocess.DEVNULL)
+        if os.name != "nt":
+            self.assertTrue(options["start_new_session"])
+        popen.return_value.wait.assert_not_called()
+        with mock.patch.dict(os.environ, {updates.BACKGROUND_FLAG: "1"}):
+            self.assertFalse(updates.check_allowed(["rules"], {"check": True},
+                                                   FakeTTY(), FakeTTY()))
+
+    def test_in_flight_claim_prevents_duplicate_workers(self):
+        cache = updates.load_cache()
+        cache["check_started_at"] = time.time()
+        updates.save_cache(cache)
+        with mock.patch.object(updates.subprocess, "Popen") as popen:
+            self.assertTrue(updates.start_background_check())
+        popen.assert_not_called()
+
+    def test_spawn_failure_is_cached_with_a_cause(self):
+        with mock.patch.object(updates.subprocess, "Popen", side_effect=OSError("no spawn")):
+            self.assertFalse(updates.start_background_check())
+        cache = updates.load_cache()
+        self.assertEqual(cache["last_error_stage"], "spawn")
+        self.assertIn("no spawn", cache["last_error"])
+
+    def test_worker_records_result_and_failed_auto_install_cause(self):
+        result = {"status": "update", "current": "1.9.1", "latest": "1.11.0", "notes": "",
+                  "checked_at": 1000.0, "cause": "", "assets": []}
+        with mock.patch.object(updates, "check_now", return_value=result) as check, \
+             mock.patch.object(updates, "load_config", return_value={"check": True, "auto": True}), \
+             mock.patch.object(updates, "install_release", return_value={
+                 "ok": False, "kind": "installer", "version": "1.11.0",
+                 "cause": "download failed", "at": 1000.0}) as install:
+            self.assertEqual(updates.background_worker(), 0)
+        check.assert_called_once()
+        install.assert_called_once()
+        cache = updates.load_cache()
+        self.assertEqual(cache["last_error_stage"], "install")
+        self.assertIn("download failed", cache["last_error"])
+        self.assertFalse(cache["last_shown_version"])
+
+    def test_cached_notice_is_shown_without_a_new_check(self):
+        result = updates.check_now(repository=REPOSITORY,
+                                   opener=lambda request, timeout: io.BytesIO(json.dumps(release()).encode()),
+                                   current=updates.__version__)
+        updates.record_check(result)
+        stderr = io.StringIO()
+        with mock.patch.object(updates, "check_allowed", return_value=True), \
+             mock.patch.object(updates, "check_now") as fetch, \
+             contextlib.redirect_stderr(stderr):
+            updates.finish_background_check(["rules"], 0)
+        fetch.assert_not_called()
+        self.assertIn(f"champollion 1.11.0 available (you have {updates.__version__})",
+                      stderr.getvalue())
+        self.assertEqual(updates.load_cache()["last_shown_version"], "1.11.0")
 
 
 class InstallTests(UpdateCase):
@@ -238,6 +296,42 @@ class InstallTests(UpdateCase):
         self.assertEqual((current / "old.txt").read_text(), "new")
         self.assertEqual((previous / "new.txt").read_text(), "newer")
         self.assertFalse(updates.load_cache()["last_error"])
+
+
+    def test_failed_staged_install_leaves_no_partial_environment(self):
+        home = Path(self.temp.name) / "install-home"
+        name = "champollion_protocol-1.11.0-py3-none-any.whl"
+        wheel = b"wheel bytes"
+        sums = hashlib.sha256(wheel).hexdigest() + "  " + name + "\n"
+        result = {"latest": "1.11.0", "assets": [
+            {"name": "SHA256SUMS", "url": "https://invalid.test/sums"},
+            {"name": name, "url": "https://invalid.test/wheel"}]}
+
+        def asset(url, opener=None, timeout=10.0, deadline=None):
+            return sums.encode() if url.endswith("sums") else wheel
+
+        with mock.patch.dict(os.environ, {"CHAMPOLLION_HOME": str(home)}), \
+             mock.patch.object(updates, "_installer_managed", return_value=True), \
+             mock.patch.object(updates, "_get_asset", side_effect=asset), \
+             mock.patch.object(updates.subprocess, "run",
+                               side_effect=subprocess.TimeoutExpired("venv", 300)):
+            outcome = updates.install_release(result, deadline=time.monotonic() + 10.0)
+        self.assertFalse(outcome["ok"])
+        self.assertIn("TimeoutExpired", outcome["cause"])
+        self.assertEqual(list(home.glob(".champollion-stage-*")), [])
+        self.assertEqual(list(home.glob("venv.next.*")), [])
+        self.assertEqual(updates.load_cache()["last_error_stage"], "install")
+
+    def test_install_log_is_bounded_and_keeps_complete_lines(self):
+        path = Path(self.temp.name) / "updates-install.log"
+        path.write_bytes((b"x" * (updates.MAX_INSTALL_LOG_BYTES + 100)) + b"\n")
+        with mock.patch.object(updates, "install_log_path", return_value=path):
+            updates.log_install({"ok": True, "version": "1.11.0"})
+        data = path.read_bytes()
+        self.assertLessEqual(len(data), updates.MAX_INSTALL_LOG_BYTES)
+        self.assertTrue(data.endswith(b"\n"))
+        self.assertEqual(json.loads(data.splitlines()[-1])["ok"], True)
+        self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
 
 
 class CliTests(UpdateCase):

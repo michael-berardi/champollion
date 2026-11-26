@@ -4,6 +4,18 @@ Changes are recorded in [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
 Champollion enforces mechanical requirements and records judgement (VER-1). It does not translate or certify sense. The dated 1.0.0 entry records release contents, not approval to publish; SPEC.md remains a working specification until publication is approved.
 
+## [1.10.1] - 2026-11-26
+
+### Fixed
+
+- The automatic release check no longer runs `check_now()` on the CLI's main thread or waits on a daemon thread. After a successful interactive command the CLI starts a detached, low-priority one-shot helper and returns immediately; the helper's GET has a 3-second timeout. A due notice from a previous check is printed from the local cache on the next interactive command. `champollion update --check` remains synchronous, so its output and exit codes (0 current, 10 available, 1 failed) are unchanged.
+- Opt-in automatic installs now run in that detached helper with a real five-minute bounded budget instead of a thread killed at CLI exit. Downloads, wheel and new venv share one temporary staging folder that is removed on success, failure, timeout or a refused swap; stale staging is pruned at the next install. A failed or impossible start records its cause in the cache, leaves the current version working and falls back to the notice. Install logs are capped at 256 KB and keep complete JSON lines.
+- `docs/updates.md` and the README Privacy section now describe the detached helper, delayed notice and bounded install rather than the previous in-process background thread.
+
+### Tests
+
+- `tests/test_updates.py` covers the non-blocking detached check and spawn-failure cause, the worker's failed-install cause, notice-from-cache, staging cleanup after an install timeout, and the bounded install log. Version metadata and release-contract expectations move to 1.10.1.
+
 ## [1.10.0] - 2026-11-26
 
 ### Added

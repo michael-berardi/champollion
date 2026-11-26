@@ -27,7 +27,7 @@ The installer verifies the release wheel's SHA-256 and installs it in a private 
 In an activated virtual environment, with Git installed:
 
 ```sh
-python3 -m pip install "champollion-protocol @ git+https://github.com/michael-berardi/champollion.git@v1.10.0"
+python3 -m pip install "champollion-protocol @ git+https://github.com/michael-berardi/champollion.git@v1.10.1"
 ```
 
 On Windows use `python` instead of `python3`. Pip may download build tooling.
@@ -54,7 +54,7 @@ Nothing is sent over the network by the toolkit itself except the anonymous rele
 
 Network use happens only when you start it:
 
-- In an interactive terminal, each command checks once every 24 hours whether a newer stable release exists: one anonymous GET to the repository's public GitHub latest-release record, with the fixed `champollion-update-check` User-Agent and no identity, version, usage or machine data. The timeout is 3 seconds; failures are cached locally with their cause and shown only by `champollion update --check`. Checks are off in CI, non-TTY/headless/agent use, with `CHAMPOLLION_NO_UPDATE_CHECK=1`, or when `updates.check` is false in the tool's config. Automatic installing is opt-in and off by default.
+- In an interactive terminal, each command hands a once-daily, anonymous check to a detached low-priority helper and returns immediately: one GET to the repository's public GitHub latest-release record, with the fixed `champollion-update-check` User-Agent and no identity, version, usage or machine data. The GET has a 3-second timeout; failures are cached locally with their cause and shown only by `champollion update --check`. A due notice from an earlier check appears on the next interactive command. Checks are off in CI, non-TTY/headless/agent use, with `CHAMPOLLION_NO_UPDATE_CHECK=1`, or when `updates.check` is false in the tool's config. Automatic installing is opt-in and off by default; when enabled, the same helper installs within a five-minute bounded budget and cleans its staging on failure.
 - The installer scripts download the installer, `SHA256SUMS` and the release wheel from GitHub. The wheel's SHA-256 is checked before the installer's pip installs it offline with `--no-index`, with pip's version check and cache off.
 - The `pip install ...git+...` and `pip install .` routes are plain pip: pip contacts GitHub (git form) and may download build tooling from PyPI. The checksum and offline flags above apply only to the installer scripts.
 - `champollion source add --url ...` does not fetch the URL. It prints a `curl` command for you to run or skip.

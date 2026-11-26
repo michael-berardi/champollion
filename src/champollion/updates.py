@@ -17,7 +17,6 @@ import shutil
 import subprocess
 import sys
 import tempfile
-import threading
 import time
 import urllib.error
 import urllib.request
@@ -34,7 +33,13 @@ PACKAGE = "champollion-protocol"
 USER_AGENT = "champollion-update-check"
 DAY_SECONDS = 24 * 60 * 60
 CHECK_TIMEOUT = 3.0
+# The opt-in install helper is a one-shot detached process, so it gets a real
+# bounded budget instead of the few milliseconds left before the CLI exits.
+INSTALL_TIMEOUT = 300.0
+STAGE_PREFIX = ".champollion-stage-"
+BACKGROUND_FLAG = "CHAMPOLLION_BACKGROUND_CHECK"
 MAX_RELEASE_BYTES = 256 * 1024
+MAX_INSTALL_LOG_BYTES = 256 * 1024
 UPDATE_EXIT = 10
 
 CONFIG_DEFAULTS: dict = {
@@ -47,6 +52,7 @@ CONFIG_DEFAULTS: dict = {
 CACHE_DEFAULTS: dict = {
     "schema": "champollion-update-cache/1",
     "checked_at": 0.0,
+    "check_started_at": 0.0,
     "latest_version": "",
     "latest_notes": "",
     "latest_url": "",
@@ -64,6 +70,7 @@ AGENT_ENV = (
     "PI_AGENT", "ANTIGRAVITY_AGENT", "DSH_AGENT",
 )
 OPT_OUT_ENV = "CHAMPOLLION_NO_UPDATE_CHECK"
+WORKER_ARG = "--background-check"
 
 _VERSION = re.compile(r"^[vV]?(\d+)\.(\d+)\.(\d+)$")
 _GITHUB = re.compile(r"^(?:https?://)?github\.com/([^/\s]+)/([^/\s#?]+?)(?:\.git)?/?$", re.IGNORECASE)
@@ -285,6 +292,7 @@ def check_now(repository: Optional[str] = None,
 def record_check(result: dict, path: Optional[Path] = None) -> dict:
     cache = load_cache(path)
     cache["checked_at"] = result["checked_at"]
+    cache["check_started_at"] = 0.0
     cache["last_error"] = result.get("cause", "")
     cache["last_error_stage"] = "check" if result.get("cause") else ""
     if result.get("status") in ("current", "update") and result.get("latest"):
@@ -300,8 +308,9 @@ def record_install(result: dict, path: Optional[Path] = None) -> dict:
     cache["last_error"] = result.get("cause", "")
     cache["last_error_stage"] = "" if result.get("ok") else "install"
     if result.get("ok"):
-        cache["last_shown_version"] = ""
-        cache["last_shown_at"] = 0.0
+        # An installed version must not be announced again by a later command.
+        cache["last_shown_version"] = str(result.get("version") or cache.get("latest_version") or "")
+        cache["last_shown_at"] = time.time()
     return save_cache(cache, path)
 
 
@@ -335,7 +344,8 @@ def check_allowed(argv: Optional[Any] = None, config: Optional[dict] = None,
     err = stderr if stderr is not None else sys.stderr
     if not getattr(out, "isatty", lambda: False)() or not getattr(err, "isatty", lambda: False)():
         return False
-    if _flag("CI") or any(_flag(name) for name in AGENT_ENV) or _flag(OPT_OUT_ENV):
+    if (_flag("CI") or _flag(BACKGROUND_FLAG) or _flag(OPT_OUT_ENV)
+            or any(_flag(name) for name in AGENT_ENV)):
         return False
     config = config if config is not None else load_config()
     return config.get("check") is True
@@ -499,11 +509,49 @@ def verify_wheel(data: bytes, wheel_name: str, sums_text: str) -> None:
         raise ChampollionError(f"checksum mismatch for {wheel_name}; nothing was installed", cause="checksum")
 
 
-def _get_asset(url: str, opener: Optional[Callable] = None, timeout: float = 10.0) -> bytes:
+def _bounded_timeout(timeout: float, deadline: Optional[float]) -> float:
+    """Keep each I/O step inside the detached worker's shared deadline."""
+    if deadline is None:
+        return float(timeout)
+    return max(0.1, min(float(timeout), deadline - time.monotonic()))
+
+
+def cleanup_staging(path: Optional[Path] = None, min_age: float = 0.0) -> int:
+    """Remove abandoned staging directories; never follow a symlink.
+
+    A fresh install prunes only old debris; a failed install prunes its own
+    staging immediately. Nothing outside the private install home is touched.
+    """
+    home = Path(path) if path else _install_home()
+    if not home.is_dir() or home.is_symlink():
+        return 0
+    removed = 0
+    now = time.time()
+    for candidate in home.iterdir():
+        name = candidate.name
+        if not (name.startswith(STAGE_PREFIX) or re.fullmatch(r"venv\.next\.\d+", name)):
+            continue
+        try:
+            if min_age and now - candidate.lstat().st_mtime < min_age:
+                continue
+            if candidate.is_symlink() or candidate.is_file():
+                candidate.unlink()
+            elif candidate.is_dir():
+                shutil.rmtree(candidate)
+            else:
+                continue
+        except OSError:
+            continue
+        removed += 1
+    return removed
+
+
+def _get_asset(url: str, opener: Optional[Callable] = None, timeout: float = 10.0,
+               deadline: Optional[float] = None) -> bytes:
     request = urllib.request.Request(url, headers={"User-Agent": TOOL + "-update-install"})
     open_with = opener or urllib.request.urlopen
     try:
-        response = open_with(request, timeout=timeout)
+        response = open_with(request, timeout=_bounded_timeout(timeout, deadline))
         try:
             return response.read(64 * 1024 * 1024 + 1)
         finally:
@@ -559,8 +607,14 @@ def rollback(path: Optional[Path] = None) -> dict:
     return result
 
 
-def install_release(result: dict, opener: Optional[Callable] = None, timeout: float = 10.0) -> dict:
-    """Verify the release wheel, stage it, swap it, and keep the old venv once."""
+def install_release(result: dict, opener: Optional[Callable] = None, timeout: float = 10.0,
+                    deadline: Optional[float] = None) -> dict:
+    """Verify the release wheel, stage it, swap it, and keep the old venv once.
+
+    ``deadline`` is a monotonic process time shared by the detached worker; every
+    network read and every subprocess obeys it, so an opt-in install cannot run
+    forever or leave a half-built environment behind.
+    """
     at = time.time()
     version = result.get("latest", "")
     plan = install_plan(result)
@@ -571,8 +625,9 @@ def install_release(result: dict, opener: Optional[Callable] = None, timeout: fl
         return out
     if plan["argv"]:
         try:
-            subprocess.run(plan["argv"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
-        except (OSError, subprocess.CalledProcessError) as exc:
+            subprocess.run(plan["argv"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                           timeout=_bounded_timeout(INSTALL_TIMEOUT, deadline))
+        except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
             out = {"ok": False, "kind": plan["kind"], "version": version, "at": at,
                    "cause": f"{plan['command']} failed: {type(exc).__name__}: {exc}"}
             record_install(out)
@@ -580,6 +635,7 @@ def install_release(result: dict, opener: Optional[Callable] = None, timeout: fl
         out = {"ok": True, "kind": plan["kind"], "version": version, "at": at, "cause": ""}
         record_install(out)
         return out
+    home = None
     try:
         assets = {a["name"]: a["url"] for a in result.get("assets", []) if a.get("name") and a.get("url")}
         sums_name = next((name for name in assets if name == "SHA256SUMS"), "")
@@ -587,28 +643,36 @@ def install_release(result: dict, opener: Optional[Callable] = None, timeout: fl
             r"champollion_protocol-\d+\.\d+\.\d+-py3-none-any\.whl", name)), "")
         if not sums_name or not wheel_name:
             raise ChampollionError("release has no verified wheel and SHA256SUMS", cause="install")
-        sums_text = _get_asset(assets[sums_name], opener, timeout).decode("utf-8")
-        wheel = _get_asset(assets[wheel_name], opener, timeout)
+        sums_text = _get_asset(assets[sums_name], opener, timeout, deadline).decode("utf-8")
+        wheel = _get_asset(assets[wheel_name], opener, timeout, deadline)
         verify_wheel(wheel, wheel_name, sums_text)
         home = _install_home()
         mkdir_private(home)
-        with tempfile.TemporaryDirectory(prefix=".champollion-stage-", dir=home) as folder:
+        cleanup_staging(home, min_age=INSTALL_TIMEOUT + 60.0)
+        # The wheel and the new environment live inside one temporary folder.
+        # Leaving the ``with`` block removes them on success, failure or a
+        # refused swap; no venv.next.<pid> debris survives a failed install.
+        with tempfile.TemporaryDirectory(prefix=STAGE_PREFIX, dir=home) as folder:
             stage_root = Path(folder)
             wheel_path = stage_root / wheel_name
             write_bytes_atomic(wheel_path, wheel)
-            stage = home / ("venv.next.%d" % os.getpid())
-            if stage.exists():
-                shutil.rmtree(stage) if stage.is_dir() else stage.unlink()
+            stage = stage_root / "venv"
             python = stage / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
             subprocess.run([sys.executable, "-m", "venv", str(stage)], check=True,
-                           stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+                           stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                           timeout=_bounded_timeout(INSTALL_TIMEOUT, deadline))
             subprocess.run([str(python), "-m", "pip", "install", "--no-index", "--no-deps",
                             "--no-cache-dir", "--disable-pip-version-check", "--quiet", str(wheel_path)],
-                           check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+                           check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                           timeout=_bounded_timeout(INSTALL_TIMEOUT, deadline))
             subprocess.run([str(python), "-m", "champollion", "--help"], check=True,
-                           stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+                           stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                           timeout=_bounded_timeout(INSTALL_TIMEOUT, deadline))
             swap_directories(home / "venv", stage, home / "venv.previous")
-    except (ChampollionError, OSError, ValueError, UnicodeError, subprocess.CalledProcessError) as exc:
+    except (ChampollionError, OSError, ValueError, UnicodeError,
+            subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+        if home is not None:
+            cleanup_staging(home)
         out = {"ok": False, "kind": "installer", "version": version, "at": at,
                "cause": f"{type(exc).__name__}: {exc}"}
         record_install(out)
@@ -619,20 +683,27 @@ def install_release(result: dict, opener: Optional[Callable] = None, timeout: fl
 
 
 def log_install(result: dict) -> None:
+    """Append one install record to a single log capped at 256 KiB."""
     entry = json.dumps(result, ensure_ascii=False, sort_keys=True) + "\n"
     path = install_log_path()
-    prior = path.read_text(encoding="utf-8") if path.is_file() else ""
-    write_bytes_atomic(path, (prior + entry).encode("utf-8"))
+    prior = path.read_bytes() if path.is_file() else b""
+    data = (prior + entry.encode("utf-8"))[-MAX_INSTALL_LOG_BYTES:]
+    if data and not data.startswith(b"\n"):
+        # Drop the truncated first line rather than writing half a record.
+        boundary = data.find(b"\n")
+        data = data[boundary + 1:] if boundary != -1 else b""
+    write_bytes_atomic(path, data)
 
 
-def auto_install(result: dict, opener: Optional[Callable] = None) -> None:
+def auto_install(result: dict, opener: Optional[Callable] = None,
+                 deadline: Optional[float] = None) -> None:
     """Low-priority, logged install; a failure leaves the current version working."""
     try:
         if hasattr(os, "nice"):
             os.nice(10)
     except OSError:
         pass
-    outcome = install_release(result, opener)
+    outcome = install_release(result, opener, deadline=deadline)
     try:
         log_install(outcome)
     except (ChampollionError, OSError):
@@ -640,36 +711,129 @@ def auto_install(result: dict, opener: Optional[Callable] = None) -> None:
     record_install(outcome)
 
 
+def start_background_check() -> bool:
+    """Launch a one-shot detached worker; the CLI never waits for it.
+
+    A thread inside this short-lived CLI would be killed at interpreter exit,
+    before a 3-second GET (and certainly before an install) could finish. A
+    detached child gets a real bounded lifetime and leaves no daemon work
+    behind. The worker inherits only this process's environment and paths.
+    """
+    env = dict(os.environ)
+    env[BACKGROUND_FLAG] = "1"
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    options: dict = {"env": env, "stdin": subprocess.DEVNULL,
+                     "stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL,
+                     "close_fds": True}
+    if os.name == "nt":
+        options["creationflags"] = (
+            getattr(subprocess, "DETACHED_PROCESS", 0)
+            | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+            | getattr(subprocess, "BELOW_NORMAL_PRIORITY_CLASS", 0))
+    else:
+        options["start_new_session"] = True
+    cache = load_cache()
+    now = time.time()
+    try:
+        started = float(cache.get("check_started_at") or 0.0)
+    except (TypeError, ValueError):
+        started = 0.0
+    if started and 0.0 <= now - started < CHECK_TIMEOUT + 15.0:
+        # A worker is already in flight; another CLI must not duplicate the GET.
+        return True
+    cache["check_started_at"] = now
+    try:
+        save_cache(cache)
+    except (ChampollionError, OSError):
+        return False
+    try:
+        subprocess.Popen([sys.executable, "-m", "champollion.updates", WORKER_ARG], **options)
+    except (OSError, ValueError) as exc:
+        # Fail closed: no network, no staging, and a recorded cause for --check.
+        cache = load_cache()
+        cache["check_started_at"] = 0.0
+        cache["checked_at"] = time.time()
+        cache["last_error"] = (f"background check could not start: {type(exc).__name__}: {exc}")
+        cache["last_error_stage"] = "spawn"
+        try:
+            save_cache(cache)
+        except (ChampollionError, OSError):
+            pass
+        return False
+    return True
+
+
+def background_worker() -> int:
+    """One anonymous check and, only if opted in, one bounded install."""
+    try:
+        if hasattr(os, "nice"):
+            os.nice(10)
+    except OSError:
+        pass
+    deadline = time.monotonic() + CHECK_TIMEOUT + INSTALL_TIMEOUT + 10.0
+    try:
+        result = check_now(timeout=CHECK_TIMEOUT)
+        record_check(result)
+        if result["status"] == "update" and load_config().get("auto"):
+            auto_install(result, deadline=deadline)
+    except Exception as exc:
+        # The cache remains valid; --check reports this cause, no stderr noise.
+        try:
+            cache = load_cache()
+            cache["check_started_at"] = 0.0
+            cache["checked_at"] = time.time()
+            cache["last_error"] = f"background worker failed: {type(exc).__name__}: {exc}"
+            cache["last_error_stage"] = "check"
+            save_cache(cache)
+        except Exception:
+            pass
+    return 0
+
+
+def cached_notice(config: Optional[dict] = None, cache: Optional[dict] = None,
+                  now: Optional[float] = None) -> Optional[dict]:
+    """Build a due notice from a previous check without any network I/O."""
+    config = config if config is not None else load_config()
+    cache = cache if cache is not None else load_cache()
+    latest = str(cache.get("latest_version") or "")
+    if compare_versions(latest, __version__) != 1:
+        return None
+    try:
+        checked = float(cache.get("checked_at") or 0.0)
+    except (TypeError, ValueError):
+        checked = 0.0
+    result = {"status": "update", "current": __version__, "latest": latest,
+              "tag": "v" + latest, "notes": str(cache.get("latest_notes") or ""),
+              "url": str(cache.get("latest_url") or ""), "assets": [], "cause": "",
+              "checked_at": checked}
+    return result if should_show_notice(result, config, cache, now) else None
+
+
 def finish_background_check(argv: Optional[Any] = None, status: int = 0) -> None:
-    """Run the daily check after a successful command; never print check noise."""
+    """Show a cached, due notice and hand the daily check to a detached worker.
+
+    This runs in the CLI's ``finally`` block: it must do bounded local I/O only
+    and must never perform the network request itself. ``update --check`` is a
+    separate, synchronous command, so its output and exit codes are unchanged.
+    """
     try:
         if status != 0 or not check_allowed(argv):
             return
         config, cache = load_config(), load_cache()
-        if not automatic_check_due(cache):
-            return
-        result = check_now()
-
-        def work() -> None:
-            try:
-                record_check(result)
-                if result["status"] != "update":
-                    return
-                if config.get("auto"):
-                    auto_install(result)
-                    latest = load_cache().get("last_install") or {}
-                    if latest.get("ok"):
-                        return
-                if should_show_notice(result, config, load_cache()):
-                    first, second = notice_lines(result["latest"], result["current"])
-                    print(first, file=sys.stderr)
-                    print(dim(second), file=sys.stderr)
-                    record_shown(result["latest"])
-            except Exception:
-                return
-
-        thread = threading.Thread(target=work, name="champollion-update-check", daemon=True)
-        thread.start()
-        thread.join(timeout=CHECK_TIMEOUT + 0.5)
+        notice = cached_notice(config, cache)
+        if notice:
+            first, second = notice_lines(notice["latest"], notice["current"])
+            print(first, file=sys.stderr)
+            print(dim(second), file=sys.stderr)
+            record_shown(notice["latest"])
+            cache = load_cache()
+        if automatic_check_due(cache):
+            start_background_check()
     except Exception:
         return
+
+
+if __name__ == "__main__":
+    if WORKER_ARG in sys.argv[1:]:
+        raise SystemExit(background_worker())
+    raise SystemExit(0)
