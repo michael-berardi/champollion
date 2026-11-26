@@ -7,7 +7,7 @@ from typing import Any, Optional
 
 from .checks.numbering import extract_markers
 from .findings import ChampollionError
-from .sources import read_json, write_bytes_atomic, load_sources
+from .sources import mkdir_private, read_json, write_bytes_atomic, load_sources
 
 
 def register_definition(profile: Any, register: Any, root: str) -> str:
@@ -115,7 +115,7 @@ def write_packets(work: Any, profile: Any, register_id: str, units: str, root: s
     documents = packet_documents(work, profile, register_id, units, root)
     destination = (Path(out) if out else Path(root) / "packets" / work.slug / register_id).resolve()
     try:
-        destination.mkdir(parents=True, exist_ok=True)
+        mkdir_private(destination)
         for document in documents:
             path = destination / document["filename"]
             if path.resolve() == Path(work.path).resolve():

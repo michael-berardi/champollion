@@ -38,18 +38,48 @@ def read_json(path: Path) -> Any:
         raise ChampollionError(f"{path}: {exc}", cause="schema") from exc
 
 
+def mkdir_private(path: Path) -> None:
+    """Create a directory tree for user content with owner-only permissions.
+
+    Directories that already exist keep their mode: they may belong to the user.
+    """
+    missing = []
+    cursor = Path(path)
+    while not cursor.exists():
+        missing.append(cursor)
+        parent = cursor.parent
+        if parent == cursor:
+            break
+        cursor = parent
+    for directory in reversed(missing):
+        directory.mkdir(mode=0o700)
+        os.chmod(directory, 0o700)
+
+
+def restrict_file(path: Path) -> None:
+    """Give a file the toolkit just wrote owner-only permissions."""
+    try:
+        os.chmod(path, 0o600)
+    except OSError as exc:
+        raise ChampollionError(f"{path}: {exc}", cause="IO") from exc
+
+
 def write_bytes_atomic(path: Path, data: bytes) -> None:
-    """Replace a local regular file atomically, refusing symlink destinations."""
+    """Replace a local regular file atomically, refusing symlink destinations.
+
+    The replacement is owner-only, so text and secrets are never left world-readable.
+    """
     temporary = None
     try:
         if path.is_symlink() or any(parent.is_symlink() for parent in path.parents):
             raise ChampollionError(f"{path}: refusing a symlink write path", cause="IO")
-        path.parent.mkdir(parents=True, exist_ok=True)
+        mkdir_private(path.parent)
         with tempfile.NamedTemporaryFile(dir=path.parent, prefix='.champollion-', delete=False) as handle:
             temporary = Path(handle.name)
             handle.write(data)
             handle.flush()
             os.fsync(handle.fileno())
+        restrict_file(temporary)
         os.replace(temporary, path)
         temporary = None
     except OSError as exc:

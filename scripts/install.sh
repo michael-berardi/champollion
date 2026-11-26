@@ -5,8 +5,15 @@
 # under ~/.champollion. The package is pure Python standard library with no dependencies, so nothing else
 # is fetched. Uses the Python 3.9+ already on this machine; if none exists it says how to install one.
 # Environment: CHAMPOLLION_HOME (default ~/.champollion), CHAMPOLLION_BIN_DIR (default ~/.local/bin),
-# CHAMPOLLION_VERSION (default: latest, e.g. 1.9.0), CHAMPOLLION_RELEASE_BASE (override the download base URL, used by tests).
+# CHAMPOLLION_VERSION (default: latest, e.g. 1.9.1), CHAMPOLLION_RELEASE_BASE (override the download base URL, used by tests).
 set -eu
+
+# The installer makes no analytics calls. These also stop pip's version check and disk cache.
+DO_NOT_TRACK=1
+export DO_NOT_TRACK
+PIP_DISABLE_PIP_VERSION_CHECK=1
+PIP_NO_CACHE_DIR=1
+export PIP_DISABLE_PIP_VERSION_CHECK PIP_NO_CACHE_DIR
 
 REPO="https://github.com/michael-berardi/champollion"
 HOME_DIR="${CHAMPOLLION_HOME:-$HOME/.champollion}"
@@ -79,7 +86,7 @@ rm -rf "$STAGE"
 # TMPDIR: ensurepip on Python 3.9 leaves a cacert.pem behind; keep it in the folder the trap removes.
 TMPDIR="$TMP" "$PYTHON" -m venv "$STAGE" || die "python3 -m venv failed; on Debian/Ubuntu install the venv module with: sudo apt-get install -y python3-venv, then run this again"
 # The package has no dependencies (pyproject: dependencies = []), so --no-index: nothing is fetched from PyPI.
-"$STAGE/bin/python" -m pip install --no-index --disable-pip-version-check --quiet "$TMP/$WHEEL" \
+"$STAGE/bin/python" -m pip install --no-index --no-cache-dir --disable-pip-version-check --quiet "$TMP/$WHEEL" \
   || die "pip could not install $WHEEL into the new venv; nothing was changed"
 VERSION=$("$STAGE/bin/python" -c 'from importlib.metadata import version; print(version("champollion-protocol"))') \
   || die "the new copy does not report its version; nothing was changed"

@@ -8,6 +8,7 @@ from typing import Dict, List, Optional, Sequence, Tuple
 
 from .. import __version__
 from ..findings import ChampollionError
+from ..sources import mkdir_private
 from .epub import build_epub
 from .model import Book, DEFAULT_EDITIONS, available_editions, load_book
 from .pdf import check_overflow, check_scale, find_chrome, html_to_pdf, html_to_png, check_folio, locate_body, locate_markers, page_texts, pdf_pages, require_poppler, set_info
@@ -168,7 +169,7 @@ def export_book(work: str, edition: str, formats: Sequence[str], out_dir: str, o
                      "converted from the source\u2019s Manuel de Codage.")
     results: List[Dict[str, object]] = []
     out = Path(out_dir)
-    out.mkdir(parents=True, exist_ok=True)
+    mkdir_private(out)
     chrome_bin = find_chrome(chrome)
     stem = f"{book.slug}-{edition}"
     if "epub" in formats:

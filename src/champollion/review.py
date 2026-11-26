@@ -21,7 +21,7 @@ from .findings import ChampollionError
 from .format import parse_work
 from .packets import numbering_policy, register_definition
 from .report import VERSION as PROTOCOL_VERSION
-from .sources import load_sources, local_path, read_json, write_bytes_atomic, write_json
+from .sources import load_sources, local_path, mkdir_private, read_json, write_bytes_atomic, write_json
 
 REVIEW_VERSION = "champollion-review/1"
 PIECE_CHARS = 5000
@@ -308,7 +308,7 @@ def write_review_packets(work: ReviewWork, out: str, piece_chars: int = PIECE_CH
     destination = Path(out).resolve()
     entries = []
     try:
-        destination.mkdir(parents=True, exist_ok=True)
+        mkdir_private(destination)
         for piece in pieces:
             filename = piece_id(piece) + ".review.md"
             _write_guarded(destination / filename, _review_packet(work, piece, definitions).encode("utf-8"), work)
@@ -412,7 +412,7 @@ def verify_packets(work: ReviewWork, replies: str, out: str, index: Optional[str
     entries, invalid, packets_written, proposals_total = [], [], 0, 0
     not_reviewed = list(binding.get("not_reviewed", []))
     try:
-        destination.mkdir(parents=True, exist_ok=True)
+        mkdir_private(destination)
         for entry in binding["pieces"]:
             piece = by_id.get(entry["id"])
             base = {key: entry[key] for key in ("id", "unit", "piece", "title", "key")}

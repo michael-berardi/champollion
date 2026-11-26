@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any, Optional, Sequence
 
 from .findings import ChampollionError
-from .sources import add_source, read_json, write_json
+from .sources import add_source, mkdir_private, read_json, write_json
 
 
 class _Parser(argparse.ArgumentParser):
@@ -257,7 +257,7 @@ def _init(directory: str) -> dict:
     if not profile.is_file():
         raise ChampollionError(f"{profile}: generic profile missing", cause="configuration")
     try:
-        (root / "works").mkdir(parents=True, exist_ok=True)
+        mkdir_private(root / "works")
     except OSError as exc:
         raise ChampollionError(f"{root}: {exc}", cause="IO") from exc
     local_profile = root / "profiles" / "generic.json"

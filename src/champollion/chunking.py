@@ -19,7 +19,7 @@ from typing import Any, List, Optional
 
 from .findings import ChampollionError
 from .notes import NOTE_LINE, anchors as note_anchors, note_labels
-from .sources import write_bytes_atomic
+from .sources import mkdir_private, write_bytes_atomic
 
 # Line-initial paragraph IDs such as "[DTA 0001]" (a letter first, so page markers are excluded).
 DEFAULT_ANCHOR = r"^\[(?!Note )[A-Za-z][^\]\n]*\]"
@@ -104,7 +104,7 @@ def write_split(source: str, out: str, max_words: int) -> dict:
         raise ChampollionError(f"{destination}: write packets outside the source file's directory", cause="usage")
     entries = []
     try:
-        destination.mkdir(parents=True, exist_ok=True)
+        mkdir_private(destination)
         for index, packet in enumerate(packets, 1):
             name = _name(index, len(packets))
             _write_new(destination / name, packet.encode("utf-8"))
@@ -220,7 +220,7 @@ def join_packets(directory: str, out: str, source_dir: Optional[str] = None,
         raise ChampollionError(f"{target}: write the joined text outside the packet directory", cause="usage")
     payload = text.encode("utf-8")
     try:
-        target.parent.mkdir(parents=True, exist_ok=True)
+        mkdir_private(target.parent)
         _write_new(target, payload)
     except OSError as exc:
         raise ChampollionError(f"{target}: {exc}", cause="IO") from exc

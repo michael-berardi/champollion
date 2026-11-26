@@ -12,10 +12,16 @@ Champollion enforces mechanical requirements and records judgement (VER-1). It d
 - `champollion update` with `--check` (exit 0 current, 10 available, 1 failed), `--skip`, `--auto on|off|status` and `--rollback`. Installer copies verify the wheel against the release's `SHA256SUMS` before a staged swap and keep one rollback copy; pip, uv and pipx copies run their package manager pinned to the release tag.
 - Automatic installs, off by default: one detached, low-priority install per new version, a log under 256 KB, and the notice again if it fails.
 - `PRIVACY.md` and a short README Privacy section.
+- `tests/test_privacy.py`: fails if telemetry packages or tracking endpoints return, if a default command opens a socket or starts a subprocess, if the renderer loses its offline flags, or if toolkit-written text is not owner-only.
+
+### Changed
+
+- Files and folders created for project text, packets, review records, vendored snapshots and exported books are owner-only (0700/0600). Existing directories keep their mode; files the toolkit rewrites become 0600. On Windows the folder's permissions apply.
+- The Chrome/Chromium renderer used by `export` runs with background networking, component updates, metrics, extensions and DNS disabled and `DO_NOT_TRACK=1`. Installers set `DO_NOT_TRACK=1` and run pip offline with no cache or version check.
 
 ### Migration
 
-- No checker, profile, rule ID, report field or protocol version change. State lives in one owner-only `update.json` in the platform cache folder.
+- Re-vendor v1.10.0 to adopt the owner-only permissions and offline renderer flags. No checker, profile, rule ID, report field or protocol version change. State lives in one owner-only `update.json` in the platform cache folder.
 - Rollback: re-vendor v1.9.0.
 
 ## [1.9.0] - 2026-11-25
