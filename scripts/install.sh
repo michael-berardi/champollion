@@ -5,7 +5,7 @@
 # under ~/.champollion. The package is pure Python standard library with no dependencies, so nothing else
 # is fetched. Uses the Python 3.9+ already on this machine; if none exists it says how to install one.
 # Environment: CHAMPOLLION_HOME (default ~/.champollion), CHAMPOLLION_BIN_DIR (default ~/.local/bin),
-# CHAMPOLLION_VERSION (default: latest, e.g. 1.9.1), CHAMPOLLION_RELEASE_BASE (override the download base URL, used by tests).
+# CHAMPOLLION_VERSION (default: latest, e.g. 1.10.2), CHAMPOLLION_RELEASE_BASE (override the download base URL, used by tests).
 set -eu
 
 # The installer makes no analytics calls. These also stop pip's version check and disk cache.

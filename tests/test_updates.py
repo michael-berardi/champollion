@@ -412,15 +412,16 @@ class InstallTests(UpdateCase):
         self.assertEqual(result["version"], NEWER)
         self.assertEqual((self.venv / "marker").read_text(encoding="utf-8"), NEWER)
         self.assertEqual((self.home / "venv.previous" / "marker").read_text(encoding="utf-8"), "old")
-        self.assertEqual(self.leftovers(), (["venv", "venv.previous"], []))
+        self.assertEqual(self.leftovers(), (["venv", "venv.first-run.json", "venv.previous"], []))
         self.assertEqual(len(set(self.temporaries)), 1)  # every step's TMPDIR is the update's own folder
         self.assertEqual(Path(self.temporaries[0]).parent, self.tmp)
         updates.install("installer", NEWEST, "v" + NEWEST, get=self.fetcher(NEWEST), run=self.runner(NEWEST))
         self.assertEqual((self.home / "venv.previous" / "marker").read_text(encoding="utf-8"), NEWER)
-        self.assertEqual(self.leftovers(), (["venv", "venv.previous"], []))
+        self.assertEqual(self.leftovers(), (["venv", "venv.first-run.json", "venv.previous"], []))
         code, output, _ = self.run_cli("update", "--rollback")
         self.assertEqual((code, output), (0, "restored the previous version; it applies next run\n"))
         self.assertEqual((self.venv / "marker").read_text(encoding="utf-8"), NEWER)
+        self.assertFalse((self.home / "venv.first-run.json").exists())
         self.assertEqual(self.leftovers(), (["venv"], []))
         self.assertEqual(self.run_cli("update", "--rollback")[0], 2)
 

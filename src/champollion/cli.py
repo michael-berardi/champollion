@@ -550,6 +550,7 @@ def _dispatch(args: argparse.Namespace) -> int:
 def main(argv: Optional[Sequence[str]] = None) -> int:
     """Run a documented command, returning 0/1/2/10 and naming operational errors."""
     arguments = list(sys.argv[1:] if argv is None else argv)
+    status = 2
     try:
         try:
             args = _parser().parse_args(arguments)
@@ -557,9 +558,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             return int(exc.code)
         from . import updates
         pending = updates.start_check(arguments)
-        code = _dispatch(args)
-        updates.after_command(pending, args.command, code)
-        return code
+        status = _dispatch(args)
+        updates.after_command(pending, args.command, status)
+        return status
     except ChampollionError as exc:
         print(f"champollion: {exc.cause or 'operational-error'}: {exc}", file=sys.stderr)
         return 2
@@ -569,3 +570,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     except (ValueError, TypeError) as exc:
         print(f"champollion: schema: {exc}", file=sys.stderr)
         return 2
+    finally:
+        # Local lifetimes run after the command, print nothing and never change
+        # its exit status. Only an installer-managed copy prunes install debris.
+        try:
+            from . import retention
+            retention.prune(successful=status == 0)
+        except Exception:
+            pass

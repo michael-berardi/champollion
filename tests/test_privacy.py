@@ -32,7 +32,7 @@ FORBIDDEN = (
     r"\bunpkg\.com\b", r"\bgravatar\.com\b",
 )
 SCANNED = (
-    ROOT / "pyproject.toml", ROOT / "README.md", ROOT / "Makefile",
+    ROOT / "pyproject.toml", ROOT / "README.md", ROOT / "PRIVACY.md", ROOT / "Makefile",
     ROOT / "scripts/install.sh", ROOT / "scripts/install.ps1",
     *sorted((ROOT / "src").rglob("*.py")),
 )
@@ -113,13 +113,33 @@ class PrivacyTests(unittest.TestCase):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         self.assertIn("## Privacy", readme)
         section = readme.split("## Privacy", 1)[1].split("\n## ", 1)[0]
-        # Short and confident in the README (at most 6 lines); every detail lives in PRIVACY.md.
-        self.assertLessEqual(len([line for line in section.splitlines() if line.strip()]), 6)
+        lines = [line for line in section.splitlines() if line.strip()]
+        # The contract asks for a short README summary, not the whole policy.
+        self.assertGreaterEqual(len(lines), 3, lines)
+        self.assertLessEqual(len(lines), 6, lines)
+        self.assertTrue(any("PRIVACY.md" in line for line in lines), lines)
         for phrase in ("no telemetry", "update check", "privacy.md"):
             self.assertIn(phrase, section.lower())
-        privacy = (ROOT / "PRIVACY.md").read_text(encoding="utf-8").lower()
-        for phrase in ("no telemetry", "0600", "0700", "removing everything", "reviewers and model providers"):
-            self.assertIn(phrase, privacy)
+        detail = (ROOT / "PRIVACY.md").read_text(encoding="utf-8")
+        for phrase in ("nothing is sent", "no telemetry", "0600", "0700", "delete", "third party",
+                       "venv.previous", "seven days", "update.log", "removing everything",
+                       "reviewers and model providers"):
+            self.assertIn(phrase, detail.lower())
+
+    def test_privacy_detail_does_not_deny_the_capped_install_log(self):
+        detail = (ROOT / "PRIVACY.md").read_text(encoding="utf-8")
+        normalized = " ".join(detail.lower().split())
+        self.assertNotIn("no logs, history or transcripts are stored", normalized)
+        self.assertIn("the one exception above is `update.log`", normalized)
+        self.assertIn("never contains work text", normalized)
+
+    def test_privacy_detail_states_every_local_write_and_lifetime(self):
+        detail = (ROOT / "PRIVACY.md").read_text(encoding="utf-8").lower()
+        for entry in ("champollion.json", "sources/manifest.json", "update.json",
+                      "update.log", "__pycache__", "temporary folder", "lifetime"):
+            self.assertIn(entry, detail)
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertIn("PRIVACY.md", readme.split("## Privacy", 1)[1].split("\n## ", 1)[0])
 
 
 if __name__ == "__main__":

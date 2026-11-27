@@ -15,7 +15,7 @@ Champollion tells you when a newer stable release exists and installs it with on
 When a newer release exists, two lines follow your command's output on stderr, at most once a day per version:
 
 ```text
-champollion 1.11.0 available (you have 1.10.0) · run: champollion update
+champollion 1.11.0 available (you have 1.10.2) · run: champollion update
 turn on automatic updates: champollion update --auto on · skip: champollion update --skip
 ```
 
@@ -46,6 +46,14 @@ When on, the check that finds a newer release starts one detached, low-priority 
 - **pip, uv tool, pipx:** `update` runs the package manager's own command pinned to the release tag, for example `uv tool install --force "champollion-protocol @ git+https://github.com/<owner>/<repo>.git@v1.11.0"`. It never overwrites files a package manager owns.
 - **Source checkout or vendored snapshot:** no notice. Update with `git pull`, or vendor a newer tag.
 
+### Rollback retention (contract §4a)
+
+After a verified swap the installer writes `venv.first-run.json` beside `venv`. The first successful command run from the newly installed environment removes `venv.previous` and the marker. If that run never happens, the copy is removed by the next successful command after seven days from the install time recorded in the marker. A fresh marker therefore keeps an old replaced environment until the first successful run; a marker that cannot be read or carries no date falls back to its own modification time, and one with no readable timestamp is treated as seven days old, so no marker state extends the bound. A leftover `venv.rollback-swap` is cleared with the marker. `champollion update --rollback` restores the previous environment and clears the marker first. `update --auto off` stops future automatic installs but is not a deletion command. The retention pass runs silently after the command and cannot change its exit status. It applies only to the installer-managed environment: a checkout, a pip install or a test run leaves another install's rollback copy and the shared temporary folder alone.
+
+## Privacy boundary
+
+The release check does not read, hash or transmit a work document, source, packet, reviewer reply or export. Local text stays in the folders you choose. The anonymous daily check remains on by default in an interactive terminal and is turned off by `CHAMPOLLION_NO_UPDATE_CHECK=1` or `"check": false`. The [README Privacy section](../README.md#privacy) is the short summary; [PRIVACY.md](../PRIVACY.md) lists every network route, every local write with its lifetime, and how to delete the data.
+
 ## Files
 
 One state file holds the last check time and result (or failure cause), the skipped version, the last notice and your automatic-install choice. It is owner-only and replaced atomically.
@@ -59,3 +67,7 @@ One state file holds the last check time and result (or failure cause), the skip
 To remove Champollion completely, run `champollion update --auto off`, then delete `~/.champollion`, the `champollion` shim on your PATH, and the cache folder above. On Windows, deleting `%LOCALAPPDATA%\Champollion` removes the cache folder too.
 
 For tests against a local server, `CHAMPOLLION_UPDATE_API` replaces the release-record URL and `CHAMPOLLION_RELEASE_BASE` replaces the download base, as it does for the installers.
+
+## Documentation timing
+
+The vendoring commands in `CONTRIBUTING.md`, `docs/adopting.md` and the `make vendor` shortcut name the `v1.10.2` tag, which is not published until this version is released. Until then, vendor from a reviewed local checkout of the selected release and record its commit in `VENDOR.json`. This is a documentation note only: `vendor`, `verify-vendor`, version metadata and the release check are unchanged.

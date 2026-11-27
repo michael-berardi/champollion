@@ -27,7 +27,7 @@ The installer verifies the release wheel's SHA-256 and installs it in a private 
 In an activated virtual environment, with Git installed:
 
 ```sh
-python3 -m pip install "champollion-protocol @ git+https://github.com/michael-berardi/champollion.git@v1.10.0"
+python3 -m pip install "champollion-protocol @ git+https://github.com/michael-berardi/champollion.git@v1.10.2"
 ```
 
 On Windows use `python` instead of `python3`. Pip may download build tooling.
@@ -47,6 +47,13 @@ champollion report --root examples/latin-to-spanish --json
 On Windows, create the environment with `py -3 -m venv .venv`, activate it with `.\.venv\Scripts\Activate.ps1`, and use `python` instead of `python3`.
 
 The example has no mechanical errors, but its publication gate stays blocked because editorial review has not been recorded.
+
+## Privacy
+
+- Checks, reports, review and export run on your machine; your texts are never uploaded.
+- The only automatic network request is the daily update check: one anonymous GET of GitHub's public release record, with no version, id, usage or project data. It is off outside a terminal, in CI and under agents.
+- No telemetry, analytics or accounts.
+- Details, including every file Champollion writes: [PRIVACY.md](PRIVACY.md).
 
 ## Updates
 
@@ -100,13 +107,6 @@ make lint
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for code and protocol changes.
-
-## Privacy
-
-- Checks, reports, review and export run on your machine; your texts are never uploaded.
-- The only automatic network request is the daily update check: one anonymous GET of GitHub's public release record, with no version, id, usage or project data. It is off outside a terminal, in CI and under agents.
-- No telemetry, analytics or accounts.
-- Details, including every file Champollion writes: [PRIVACY.md](PRIVACY.md).
 
 ## License
 

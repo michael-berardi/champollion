@@ -31,6 +31,10 @@ ROLLBACK_MAX_AGE = 7 * DAY
 TIMEOUT = 4.0
 USER_AGENT = "champollion-update-check"
 LOG_LIMIT = 256 * 1024
+# Staging older than an install plus a little slack is abandoned debris.
+INSTALL_TIMEOUT = 5 * 60
+STAGE_PREFIXES = ("venv.tmp.", "venv.rollback.", ".champollion-stage-", "venv.next.")
+FIRST_RUN_MARKER = "venv.first-run.json"
 MANAGERS = ("pip", "uv", "pipx")
 # Agent hosts and worker runs set one of these; the check then stays off.
 AGENT_FLAGS = ("CHAMPOLLION_AGENT", "AGENT", "CLAUDECODE", "CODEX_SANDBOX", "GEMINI_CLI", "PI_AGENT", "DSH_AGENT")
@@ -302,6 +306,11 @@ def installer_home() -> Optional[Path]:
     return prefix.parent if prefix.name == "venv" and prefix.parent in _default_homes() else None
 
 
+def _install_home() -> Optional[Path]:
+    """The installer home used by the retention pass; None for a managed-less copy."""
+    return installer_home()
+
+
 def detect_install_kind() -> str:
     """installer, pip, uv, pipx, or source (a checkout or vendored snapshot, updated by git or re-vendoring)."""
     if installer_home() is not None:
@@ -440,7 +449,12 @@ def install_release(home: Optional[Path], version: str, tag: str, get: Callable 
         except OSError as exc:
             previous.rename(venv)
             raise ChampollionError(f"cannot move the new version into place: {exc}", cause="update") from exc
-        os.utime(previous)  # the 7-day limit counts from the swap
+        os.utime(previous)  # a missing marker falls back to this swap time
+        try:  # retention observes the first successful run from the new environment
+            from .retention import mark_pending_first_run
+            mark_pending_first_run(home, version)
+        except Exception:
+            pass
     finally:
         shutil.rmtree(download, ignore_errors=True)
         shutil.rmtree(stage, ignore_errors=True)
@@ -462,15 +476,57 @@ def rollback_install() -> dict:
         spare.rename(venv)
         raise
     shutil.rmtree(spare, ignore_errors=True)
+    try:  # a restored copy is current again, so no first run is pending
+        from .retention import clear_pending_first_run
+        clear_pending_first_run(home)
+    except Exception:
+        pass
     return {"restored": str(venv)}
 
 
+def cleanup_staging(home: Path, min_age: float = INSTALL_TIMEOUT + 60.0) -> int:
+    """Remove stale install staging and swap remnants without following symlinks."""
+    base = Path(home)
+    if base.is_symlink() or not base.is_dir():
+        return 0
+    now = time.time()
+    removed = 0
+    try:
+        candidates = list(base.iterdir())
+    except OSError:
+        return 0
+    for path in candidates:
+        if not any(path.name.startswith(prefix) for prefix in STAGE_PREFIXES):
+            continue
+        try:
+            if now - path.lstat().st_mtime < min_age:
+                continue
+            if path.is_symlink() or path.is_file():
+                path.unlink()
+            elif path.is_dir():
+                shutil.rmtree(path, ignore_errors=True)
+            else:
+                continue
+        except OSError:
+            continue
+        removed += 1
+    return removed
+
+
 def drop_rollback(ran_ok: bool) -> None:
-    """Remove ``venv.previous`` once the new version has completed a command, or after 7 days at most."""
+    """Apply the legacy rollback bound; retention supplies the marker-aware lifetime."""
     home = installer_home()
     if home is None:
         return
     previous = home / "venv.previous"
+    if ran_ok:
+        # A swap in progress for a different version still has its first run ahead.
+        try:
+            marker = json.loads((home / FIRST_RUN_MARKER).read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            marker = {}
+        if isinstance(marker, dict) and marker.get("version") not in (None, __version__):
+            return
     try:
         age = time.time() - previous.stat().st_mtime
     except OSError:

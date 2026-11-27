@@ -53,6 +53,16 @@ Pass `--inline-emphasis` (or `Options(inline_emphasis=True)` in Python) when an 
 
 Only simple paired asterisks within one line are recognized. Unpaired markers, nested markers, links and HTML are not interpreted; text is escaped. Keep an emphasized passage on one source line, or mark each verse line separately. This typesetting option changes no translation checks, profiles or publication requirements.
 
+## Local files and the temporary profile
+
+Export writes nothing outside the output paths you name. Each render uses one
+temporary folder in the system temporary folder (`champollion-*`) holding the
+page, the browser profile and the intermediate PDF or cover; the folder is
+removed when the render finishes, including when it fails. If the process is
+killed before that happens, the next successful command removes leftovers older
+than a day. The renderer never uploads the book. [PRIVACY.md](../PRIVACY.md) lists
+every local write with its lifetime.
+
 ## Options
 
 `--edition`, `--format`, `--out`, `--publisher`, `--site-url`, `--motif` (cover emblem), `--deep` and `--accent` (cover colours), `--unit-noun`, `--font-css`, `--epub-font FAMILY=FILE`, `--assets-dir` (resolves `/figures/...` image paths), `--colophon`, `--mdc`, `--inline-emphasis`, `--translator-credit NAME=CREDIT` (print a credit where the front matter names a translator, e.g. a house name to the person who made the translation), `--chrome`, `--json`.
