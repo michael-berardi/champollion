@@ -86,8 +86,8 @@ Contract §4a asks for a rollback copy to be deleted after the new version has
 run successfully once, and at the latest within seven days. The swap writes a
 small `venv.first-run.json` marker next to the environment; the first successful
 command run from the newly installed environment then removes `venv.previous` and
-the marker. If that run never happens, the copy is removed seven days after the
-install at the latest: the marker's recorded install time supplies that clock
+the marker. If that run never happens, the copy is removed by the next successful
+command after seven days from the install at the latest: the marker's recorded install time supplies that clock
 when the marker exists, not the replaced venv's older modification time. A marker
 that cannot be read or carries no date falls back to its own modification time,
 and one whose timestamp cannot be read at all is treated as seven days old, so no

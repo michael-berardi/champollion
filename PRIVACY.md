@@ -84,7 +84,7 @@ into a cache, a log or the install home.
   is pruned before the next install and by the next command from that install.
 - **Rollback copy** is dropped by the first successful run of the version that
   was just installed, which is why it is kept at all; if that run never happens,
-  the copy is removed seven days after the install time recorded in its marker,
+  the copy is removed by the next successful command after seven days from the install time recorded in its marker,
   or from the marker's own timestamp when it is unreadable or undated, and from
   the copy's own timestamp for an install without a marker. A marker whose
   timestamp cannot be read at all is treated as seven days old, so no marker
