@@ -597,6 +597,9 @@ def rollback(path: Optional[Path] = None) -> dict:
         previous.rename(current)
         if (home / "venv.rollback-swap").exists():
             (home / "venv.rollback-swap").rename(previous)
+        # The restored version is current again, so no first run is pending.
+        from .retention import clear_pending_first_run
+        clear_pending_first_run(home)
     except OSError as exc:
         result = {"ok": False, "kind": "installer", "version": "", "cause": f"rollback failed: {exc}",
                   "at": time.time()}
@@ -669,6 +672,10 @@ def install_release(result: dict, opener: Optional[Callable] = None, timeout: fl
                            stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
                            timeout=_bounded_timeout(INSTALL_TIMEOUT, deadline))
             swap_directories(home / "venv", stage, home / "venv.previous")
+            # One rollback copy is kept, but not indefinitely: the next
+            # successful run of the installed version removes it (retention).
+            from .retention import mark_pending_first_run
+            mark_pending_first_run(home, version)
     except (ChampollionError, OSError, ValueError, UnicodeError,
             subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
         if home is not None:

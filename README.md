@@ -50,21 +50,10 @@ The example has no mechanical errors, but its publication gate stays blocked bec
 
 ## Privacy
 
-Nothing is sent over the network by the toolkit itself except the anonymous release check described below. There is no telemetry, analytics, crash reporting or licence check.
-
-Network use happens only when you start it:
-
-- In an interactive terminal, each command hands a once-daily, anonymous check to a detached low-priority helper and returns immediately: one GET to the repository's public GitHub latest-release record, with the fixed `champollion-update-check` User-Agent and no identity, version, usage or machine data. The GET has a 3-second timeout; failures are cached locally with their cause and shown only by `champollion update --check`. A due notice from an earlier check appears on the next interactive command. Checks are off in CI, non-TTY/headless/agent use, with `CHAMPOLLION_NO_UPDATE_CHECK=1`, or when `updates.check` is false in the tool's config. Automatic installing is opt-in and off by default; when enabled, the same helper installs within a five-minute bounded budget and cleans its staging on failure.
-- The installer scripts download the installer, `SHA256SUMS` and the release wheel from GitHub. The wheel's SHA-256 is checked before the installer's pip installs it offline with `--no-index`, with pip's version check and cache off.
-- The `pip install ...git+...` and `pip install .` routes are plain pip: pip contacts GitHub (git form) and may download build tooling from PyPI. The checksum and offline flags above apply only to the installer scripts.
-- `champollion source add --url ...` does not fetch the URL. It prints a `curl` command for you to run or skip.
-- `champollion export` starts a Chrome/Chromium already installed on this machine to render a local HTML page. That browser is launched with background networking, component updates, metrics and DNS disabled, and with `DO_NOT_TRACK=1`; the book is not uploaded.
-- A source URL or a `--site-url` you supply is written into the book's metadata as text; nothing opens it during export.
-- If you send packets or books to a reviewer or model provider of your choosing, that third party receives what you send it. Champollion does not contact that provider.
-
-Locally, `champollion init` writes `champollion.json`, `profiles/`, `sources/manifest.json` and `works/` in the project folder. Source snapshots go under `sources/raw/`; packets, reviewer replies, review records and exported books go where you direct them. Files and directories the toolkit creates for that text are owner-only (0600 files, 0700 directories) on macOS and Linux; on Windows, access follows the folder's own permissions. The installer keeps a Python environment in `~/.champollion` (Windows: `%LOCALAPPDATA%\Champollion`) and a command shim in `~/.local/bin` (Windows: the tool's `bin` folder). Export uses a temporary browser profile that is deleted when it finishes. No logs, history or transcripts are stored; Python bytecode caches contain code, not your text.
-
-To delete your data, remove the project folders you created and, if you used the installer, `~/.champollion` and the `champollion` shim on your PATH (Windows: `%LOCALAPPDATA%\Champollion`).
+Nothing is sent over the network by the toolkit itself except the anonymous release check, which you can turn off; there is no telemetry, analytics or crash reporting.
+Work text, sources, packets, review records and exports stay in the folders you choose, and the files the toolkit writes are owner-only (0600 files, 0700 directories) on macOS and Linux.
+If you send packets or books to a reviewer or model provider, that third party receives what you send; Champollion does not contact anyone for you.
+See [PRIVACY.md](PRIVACY.md) for every network route, every local write with its lifetime, and how to delete your data.
 
 ## Updates
 

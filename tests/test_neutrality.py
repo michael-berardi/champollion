@@ -37,6 +37,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SHIPPED_DIRS = ["src", "docs", "profiles", "scripts", "examples"]
 SHIPPED_FILES = [
     "README.md",
+    "PRIVACY.md",
     "SPEC.md",
     "CHANGELOG.md",
     "SECURITY.md",

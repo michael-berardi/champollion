@@ -32,7 +32,7 @@ FORBIDDEN = (
     r"\bunpkg\.com\b", r"\bgravatar\.com\b",
 )
 SCANNED = (
-    ROOT / "pyproject.toml", ROOT / "README.md", ROOT / "Makefile",
+    ROOT / "pyproject.toml", ROOT / "README.md", ROOT / "PRIVACY.md", ROOT / "Makefile",
     ROOT / "scripts/install.sh", ROOT / "scripts/install.ps1",
     *sorted((ROOT / "src").rglob("*.py")),
 )
@@ -112,9 +112,24 @@ class PrivacyTests(unittest.TestCase):
     def test_readme_states_privacy_in_plain_language(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         self.assertIn("## Privacy", readme)
-        section = readme.split("## Privacy", 1)[1].split("\n## ", 1)[0].lower()
-        for phrase in ("nothing is sent", "no telemetry", "0600", "0700", "delete", "third party"):
-            self.assertIn(phrase, section)
+        section = readme.split("## Privacy", 1)[1].split("\n## ", 1)[0]
+        lines = [line for line in section.splitlines() if line.strip()]
+        # The contract asks for a short README summary, not the whole policy.
+        self.assertGreaterEqual(len(lines), 3, lines)
+        self.assertLessEqual(len(lines), 6, lines)
+        self.assertTrue(any("PRIVACY.md" in line for line in lines), lines)
+        detail = (ROOT / "PRIVACY.md").read_text(encoding="utf-8")
+        for phrase in ("nothing is sent", "no telemetry", "0600", "0700", "delete", "third party",
+                       "venv.previous", "seven days", "updates-install.log"):
+            self.assertIn(phrase, detail.lower())
+
+    def test_privacy_detail_states_every_local_write_and_lifetime(self):
+        detail = (ROOT / "PRIVACY.md").read_text(encoding="utf-8").lower()
+        for entry in ("champollion.json", "sources/manifest.json", "updates.json",
+                      "config.json", "__pycache__", "temporary folder", "lifetime"):
+            self.assertIn(entry, detail)
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertIn("PRIVACY.md", readme.split("## Privacy", 1)[1].split("\n## ", 1)[0])
 
 
 if __name__ == "__main__":

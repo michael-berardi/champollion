@@ -80,18 +80,21 @@ then swap it into place. The prior environment is kept once as `venv.previous`
 for `champollion update --rollback`; a failed swap restores it. A checksum
 mismatch refuses the install and changes nothing.
 
-### Known gap in contract §4a
+### Rollback retention (contract §4a)
 
 Contract §4a asks for a rollback copy to be deleted after the new version has
-run successfully once, and at the latest within seven days; it also asks
-`update --auto off` to clear saved auto state. This build does **not** implement
-that cleanup. An installer-managed swap keeps its single rollback environment
-(`venv.previous` in the private install home) **indefinitely**: there is no
-first-successful-run check and no seven-day expiry. Remove that directory
-manually when you no longer need it, or run `champollion update --rollback` to
-restore it first. `champollion update --auto off` sets the saved automatic-install
-preference to off and stops future automatic installs, but it **does not delete
-the rollback copy** and does not start any timed cleanup.
+run successfully once, and at the latest within seven days. The swap writes a
+small `venv.first-run.json` marker next to the environment; the first successful
+command run from the newly installed environment then removes `venv.previous` and
+the marker. If that run never happens, the copy is removed seven days after the
+install at the latest, and the same pass clears a leftover `venv.rollback-swap`.
+`champollion update --rollback` restores the previous environment first and clears
+the marker, so a restored copy is not deleted underneath you. `update --auto off`
+clears the saved automatic-install preference and stops future automatic
+installs; it does not delete the rollback copy. Deletion is silent, happens after
+the command has finished, and cannot change an exit status. A checkout, a pip
+install or a test run leaves another install's rollback copy alone: only code
+running from the installer-managed environment applies the first-run rule.
 
 Package-manager installs are detected instead of overwritten. The prompt names
 the right command (`uv tool upgrade champollion-protocol`,
@@ -104,20 +107,16 @@ than touching files the manager owns.
 The release check does not read, hash or transmit a work document, source,
 packet, reviewer reply or export. Local text remains in the directories you
 choose; installer-managed code remains under the private install home. If you
-opt out, the CLI makes no update request at all. See the [Privacy section of the
-README](../README.md#privacy) for the rest of the toolkit's network and file
-behaviour.
+opt out, the CLI makes no update request at all. The [README Privacy
+section](../README.md#privacy) keeps the short summary the contract asks for, and
+[PRIVACY.md](../PRIVACY.md) lists every network route, every local write with its
+lifetime, and how to delete the data.
 
 ## Documentation deviations
 
 - **Unpublished vendor tag.** The vendoring instructions in `CONTRIBUTING.md`,
-  `docs/adopting.md` and the `make vendor` shortcut name the `v1.10.1` tag. That
+  `docs/adopting.md` and the `make vendor` shortcut name the `v1.10.2` tag. That
   tag is not published until this branch is released. Until then, vendor from a
   reviewed local checkout of the selected release and record its commit in
   `VENDOR.json`. This is a documentation timing note only: `vendor`,
   `verify-vendor`, version metadata and the release check are unchanged.
-- **README Privacy length.** The contract asks for 3-6 short lines in the README
-  Privacy section. This project keeps a detailed section instead: the anonymous
-  release check, installer routes, offline renderer and owner-only local-file
-  boundaries each need an accurate statement. The privacy guarantees are not
-  relaxed, and no behavior or version changed.

@@ -590,6 +590,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         print(f"champollion: schema: {exc}", file=sys.stderr)
         return 2
     finally:
+        # Local lifetimes are mechanical and silent: prune install debris, the
+        # spent rollback copy and abandoned export profiles, then show any due
+        # release notice. Neither step changes the command's exit status.
+        try:
+            from . import retention
+            retention.prune(successful=status == 0)
+        except Exception:
+            pass
         # An update check is never part of startup and never changes the command's
         # exit status or stdout. It only runs after a successful interactive command.
         try:

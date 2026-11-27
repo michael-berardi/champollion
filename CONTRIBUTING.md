@@ -47,11 +47,11 @@ Use the corresponding profile path when changing a different profile. Keep schem
 Update in a development checkout with the selected tagged release available locally. Keep the previous snapshot and reports so rollback is possible. The pinned update and integrity check are:
 
 ```sh
-champollion vendor --into vendor --tag v1.10.1
+champollion vendor --into vendor --tag v1.10.2
 champollion verify-vendor vendor/champollion
 ```
 
-The `v1.10.1` tag is not published until this branch is released. Until then,
+The `v1.10.2` tag is not published until this branch is released. Until then,
 use a reviewed local checkout of the selected release and record its commit in
 `VENDOR.json`; this note does not change the vendoring command or its behavior.
 

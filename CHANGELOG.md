@@ -4,14 +4,24 @@ Changes are recorded in [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
 Champollion enforces mechanical requirements and records judgement (VER-1). It does not translate or certify sense. The dated 1.0.0 entry records release contents, not approval to publish; SPEC.md remains a working specification until publication is approved.
 
-## Unreleased
+## [1.10.2] - 2026-11-26
 
-### Documentation
+### Added
 
-- Recorded the contract §4a rollback gap in `docs/updates.md`: one installer-managed rollback environment (`venv.previous`) is retained indefinitely with no first-run or seven-day cleanup and must be removed manually; `update --auto off` stops automatic installs but does not delete the rollback copy. No update behavior changed.
-- The pip installation example now points at the published `v1.10.0` tag instead of the unpublished `v1.10.1` branch version.
-- Noted in `docs/updates.md`, `CONTRIBUTING.md` and `docs/adopting.md` that the vendoring instructions still name the `v1.10.1` tag, which is unpublished until this branch is released; until then, vendor from a reviewed local checkout of the selected release. The `vendor`/`verify-vendor` commands, versions and behavior are unchanged.
-- Noted in `docs/updates.md` that the README Privacy section is intentionally longer than the contract's 3-6 short lines, so the release check, installer routes, offline renderer and owner-only file boundaries remain accurate. No privacy claim or behavior changed.
+- `PRIVACY.md`: every network route, every local write with its lifetime, the retention that runs by itself, and how to delete the data. The README Privacy section is now the contract's 3-6 short lines and links to it; the detail moved there instead of staying in the README.
+- `champollion/retention.py`: one bounded pass, after any command, that removes stale install staging, applies the rollback lifetime, and clears abandoned export temporary folders. It reads no work document, opens no socket and starts no process.
+- `tests/test_retention.py`: covers first-successful-run and seven-day rollback removal, the marker a swap writes, `update --rollback` clearing it, staging and `venv.next.<pid>` debris, symlink refusal and export-temp expiry, with a temporary install home.
+
+### Changed
+
+- Contract §4a rollback retention is now implemented instead of documented as a gap: a successful install writes `venv.first-run.json`, and the first successful command run from the new environment removes `venv.previous` and the marker; if that run never happens the copy is removed seven days after the install. `champollion update --rollback` restores the previous environment and clears the marker. Deletion is silent, follows no symlink, and cannot change an exit status. Runs from a checkout, a pip install or a test never delete another install's rollback copy.
+- `docs/updates.md` replaces the "known gap in contract §4a" section with the implemented behaviour, points at `PRIVACY.md`, and drops the README-Privacy-length deviation because the section now matches the contract. `docs/export.md` records the export temporary folder and its lifetime.
+- The pip installation example points at the published `v1.10.0` tag. The vendoring instructions in `docs/updates.md`, `CONTRIBUTING.md` and `docs/adopting.md` name the `v1.10.2` tag, which is unpublished until this branch is released; until then, vendor from a reviewed local checkout of the selected release. The `vendor`/`verify-vendor` commands and their behavior are unchanged.
+- Version metadata moves to 1.10.2 (`pyproject.toml`, `CITATION.cff`, `champollion.__version__`, `scripts/build-release.py`). Update-check behavior, prompts, checks, profiles, rule IDs and report fields are unchanged.
+
+### Migration
+
+- No protocol, profile, rule ID, CLI flag or report field changed. Re-vendor 1.10.2 to adopt it. If you keep an installer-managed rollback environment you no longer want, run `champollion update --rollback` first or delete `venv.previous` yourself; the next command after that install's first successful run removes it anyway.
 
 ## [1.10.1] - 2026-11-26
 

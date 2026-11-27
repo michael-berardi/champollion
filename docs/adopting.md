@@ -71,12 +71,12 @@ rights and missing source evidence cannot be waived.
 From an installed, verified release or a reviewed tagged checkout:
 
 ```sh
-champollion vendor --into vendor --tag v1.10.1
+champollion vendor --into vendor --tag v1.10.2
 champollion verify-vendor vendor/champollion
 python3 vendor/champollion/__main__.py rules
 ```
 
-`v1.10.1` is the tag for this branch and is **not published yet**: until the
+`v1.10.2` is the tag for this branch and is **not published yet**: until the
 branch is released, vendor from a reviewed local checkout of the selected
 release and record its commit in `VENDOR.json`. This note does not change the
 `vendor` command or its behavior.
