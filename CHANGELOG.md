@@ -21,8 +21,8 @@ Champollion enforces mechanical requirements and records judgement (VER-1). It d
 
 ### Fixed
 
-- Rollback retention takes its seven-day clock from `venv.first-run.json`'s recorded install time whenever the marker exists, so an old `venv.previous` directory with a fresh marker survives a failed command and is dropped by the first successful run. Staging and export-temp cleanup now runs only from the installer-managed environment: a checkout, pip install or test run no longer prunes a real install home or the shared system temporary folder. `PRIVACY.md` no longer says that no logs are stored while documenting the capped install log.
-- `tests/test_retention.py` covers the old copy with a fresh marker across failed and successful commands and an unmanaged command leaving both a sentinel install home and stale export temp untouched; `tests/test_privacy.py` guards the corrected log wording.
+- Rollback retention takes its seven-day clock from `venv.first-run.json`'s recorded install time whenever the marker exists, so an old `venv.previous` directory with a fresh marker survives a failed command and is dropped by the first successful run. A marker that is unreadable or carries no date now falls back to its own modification time, and one whose timestamp cannot be read at all is treated as seven days old, so no marker state can keep the copy past the Contract §4a bound. Staging and export-temp cleanup now runs only from the installer-managed environment: a checkout, pip install or test run no longer prunes a real install home or the shared system temporary folder. `PRIVACY.md` no longer says that no logs are stored while documenting the capped install log.
+- `tests/test_retention.py` covers the old copy with a fresh marker across failed and successful commands, a dated marker past seven days, and an unreadable or undated marker expired from its own old timestamp (kept while that timestamp is fresh); an unmanaged command leaving both a sentinel install home and stale export temp untouched; `tests/test_privacy.py` guards the corrected log wording.
 
 ### Migration
 

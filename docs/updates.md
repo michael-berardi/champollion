@@ -88,7 +88,10 @@ small `venv.first-run.json` marker next to the environment; the first successful
 command run from the newly installed environment then removes `venv.previous` and
 the marker. If that run never happens, the copy is removed seven days after the
 install at the latest: the marker's recorded install time supplies that clock
-when the marker exists, not the replaced venv's older modification time. The
+when the marker exists, not the replaced venv's older modification time. A marker
+that cannot be read or carries no date falls back to its own modification time,
+and one whose timestamp cannot be read at all is treated as seven days old, so no
+marker state keeps the copy past the bound. The
 same pass clears a leftover `venv.rollback-swap`.
 `champollion update --rollback` restores the previous environment first and clears
 the marker, so a restored copy is not deleted underneath you. `update --auto off`

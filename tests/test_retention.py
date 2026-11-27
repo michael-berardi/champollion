@@ -116,6 +116,56 @@ class RollbackRetentionTests(RetentionCase):
         self.assertFalse(previous.exists())
         self.assertFalse(marker.exists())
 
+    def test_dated_marker_older_than_seven_days_expires_without_a_successful_run(self):
+        now = time.time()
+        # The copy itself was just made current; only the recorded install time is old.
+        previous = self.rollback_copy()
+        marker = self.home / retention.FIRST_RUN_MARKER
+        retention.mark_pending_first_run(self.home, updates.__version__, now=now - 7 * DAY - 60)
+        report = retention.prune(self.home, now=now, successful=False, running_prefix=self.venv)
+        self.assertTrue(report["previous_removed"])
+        self.assertTrue(report["marker_cleared"])
+        self.assertFalse(previous.exists())
+        self.assertFalse(marker.exists())
+
+    def test_unreadable_or_undated_marker_falls_back_to_its_own_age(self):
+        contents = {
+            "empty": "",
+            "malformed": "{not json",
+            "undated": json.dumps({"schema": retention.MARKER_SCHEMA,
+                                   "version": updates.__version__}),
+        }
+        for label, content in contents.items():
+            with self.subTest(label=label):
+                previous = self.rollback_copy()
+                marker = self.home / retention.FIRST_RUN_MARKER
+                marker.write_text(content, encoding="utf-8")
+                self.age(marker, 8)
+                report = retention.prune(self.home, successful=False, running_prefix=self.venv)
+                self.assertTrue(report["previous_removed"], label)
+                self.assertTrue(report["marker_cleared"], label)
+                self.assertFalse(previous.exists(), label)
+                self.assertFalse(marker.exists(), label)
+
+    def test_undated_marker_with_a_fresh_mtime_is_not_expired_early(self):
+        previous = self.rollback_copy()
+        marker = self.home / retention.FIRST_RUN_MARKER
+        marker.write_text("{not json", encoding="utf-8")
+        report = retention.prune(self.home, successful=False, running_prefix=self.venv)
+        self.assertFalse(report["previous_removed"])
+        self.assertTrue(previous.is_dir())
+        self.assertTrue(marker.is_file())
+
+    def test_undated_marker_expires_when_its_own_mtime_is_unavailable(self):
+        previous = self.rollback_copy()
+        marker = self.home / retention.FIRST_RUN_MARKER
+        marker.write_text("{not json", encoding="utf-8")
+        with mock.patch.object(retention, "_age", return_value=None):
+            report = retention.prune(self.home, successful=False, running_prefix=self.venv)
+        self.assertTrue(report["previous_removed"])
+        self.assertFalse(previous.exists())
+        self.assertFalse(marker.exists())
+
     def test_rollback_restores_the_copy_and_clears_the_marker(self):
         previous = self.rollback_copy()
         retention.mark_pending_first_run(self.home, updates.__version__)

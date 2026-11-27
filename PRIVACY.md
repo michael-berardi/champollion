@@ -66,7 +66,7 @@ follows the folder's own permissions.
 | Install log: `updates-install.log`, one JSON line per install attempt | The same cache folder | Capped at 256 KB; the oldest lines are dropped first. |
 | Installed environment and command shim | `~/.champollion` (Windows: `%LOCALAPPDATA%\Champollion`), shim in `~/.local/bin` | Until you reinstall, uninstall, or roll back. |
 | Install staging: `.champollion-stage-*`, `venv.next.<pid>` | The install home | Removed on success, failure, timeout or a refused checksum; anything older than about six minutes is pruned by the next command run from that installer-managed install. |
-| Rollback copy: `venv.previous`, with its `venv.first-run.json` marker and any `venv.rollback-swap` leftover | The install home | Removed after the installed version has run successfully once, or seven days after the install at the latest. The marker's install time sets that clock when the marker exists, so an old replaced environment is not expired early. `champollion update --rollback` restores it and clears the marker; a later install replaces it. |
+| Rollback copy: `venv.previous`, with its `venv.first-run.json` marker and any `venv.rollback-swap` leftover | The install home | Removed after the installed version has run successfully once, or seven days after the install at the latest. The marker's install time sets that clock when the marker exists, so an old replaced environment is not expired early; a marker that cannot be read or holds no date expires from its own timestamp instead, and one without even that is treated as seven days old, so the bound always holds. `champollion update --rollback` restores it and clears the marker; a later install replaces it. |
 | Python bytecode caches (`__pycache__`) | Next to the installed modules, and in the install home | Code, not your text; deleted with the environment. |
 
 No logs of your text, commands, history or transcripts are stored. The one
@@ -84,8 +84,11 @@ into a cache, a log or the install home.
   is pruned before the next install and by the next command from that install.
 - **Rollback copy** is dropped by the first successful run of the version that
   was just installed, which is why it is kept at all; if that run never happens,
-  the copy is removed seven days after the install time recorded in its marker
-  (or from the copy's own timestamp for an install without a marker). `update --auto off`
+  the copy is removed seven days after the install time recorded in its marker,
+  or from the marker's own timestamp when it is unreadable or undated, and from
+  the copy's own timestamp for an install without a marker. A marker whose
+  timestamp cannot be read at all is treated as seven days old, so no marker
+  state extends the bound. `update --auto off`
   stops future automatic installs but is not a deletion command; remove `venv.previous`
   yourself if you want it gone sooner, or run `update --rollback` first.
 - **Export leftovers** in the system temporary folder are removed by the next

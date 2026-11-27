@@ -108,9 +108,12 @@ def _rollback_retention(home: Path, now: float, successful: bool,
         # years old and must not expire a copy that the swap just made current.
         age = now - float(recorded)
     elif has_marker:
-        # A present but unreadable or undated marker gives no install time; do
-        # not guess one from the replaced directory's inherited mtime.
-        age = None
+        # A present but unreadable or undated marker gives no install time. It
+        # must still not extend the bound: fall back to the marker file's own
+        # modification time, and expire conservatively when even that is gone.
+        age = _age(marker, now)
+        if age is None:
+            age = float(ROLLBACK_MAX_AGE)
     else:
         # Legacy installs without a marker still get the bounded folder clock.
         age = _age(previous, now)
