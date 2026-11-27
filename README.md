@@ -51,7 +51,7 @@ The example has no mechanical errors, but its publication gate stays blocked bec
 ## Privacy
 
 - Checks, reports, review and export run on your machine; your texts are never uploaded.
-- The only automatic network request is the daily update check: one anonymous GET of GitHub's public release record, with no version, id, usage or project data. It is off outside a terminal, in CI and under agents.
+- The only automatic network request is the daily update check: one anonymous GET of GitHub's public release record, with no version, id, usage or project data. It is off outside a terminal, in CI and under agents, and `CHAMPOLLION_NO_UPDATE_CHECK=1` turns it off.
 - No telemetry, analytics or accounts.
 - Details, including every file Champollion writes: [PRIVACY.md](PRIVACY.md).
 

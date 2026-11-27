@@ -51,10 +51,6 @@ champollion vendor --into vendor --tag v1.10.2
 champollion verify-vendor vendor/champollion
 ```
 
-The `v1.10.2` tag is not published until this branch is released. Until then,
-use a reviewed local checkout of the selected release and record its commit in
-`VENDOR.json`; this note does not change the vendoring command or its behavior.
-
 `VENDOR.json` retains the selected upstream label and per-file SHA-256 evidence. Record the verified commit in the label when applicable; a label alone does not prove origin. Confirm the tag and file inventory before accepting the change. Run the host's focused fixtures and, for Mouseia, the frozen-oracle comparisons on the corpus and pass/fail/baselined cases. Review any profile change separately; do not introduce new gates as a side effect of re-vendoring. Commit the snapshot, integrity evidence, profile revision, and migration record together after the host's release review. Production checks use the stored snapshot, not an update command or network fetch.
 
 ## Report a false positive

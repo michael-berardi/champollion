@@ -4,27 +4,28 @@ Changes are recorded in [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
 Champollion enforces mechanical requirements and records judgement (VER-1). It does not translate or certify sense. The dated 1.0.0 entry records release contents, not approval to publish; SPEC.md remains a working specification until publication is approved.
 
-## [1.10.2] - 2026-11-26
+## [1.10.2] - 2026-11-27
 
 ### Added
 
-- `PRIVACY.md`: every network route, every local write with its lifetime, automatic retention and how to remove the data. The README Privacy section stays short and links there.
-- `champollion/retention.py` and `tests/test_retention.py`: one bounded, silent pass after a command removes stale install staging, applies the rollback lifetime and clears abandoned export temporary folders. It reads no work document, opens no socket and starts no process; a checkout, pip install or test run never prunes a real install home.
+- `PRIVACY.md` lists every network route, every local write with its location and lifetime, the retention that runs by itself and how to remove everything. The README Privacy section stays at four short lines, now right after the install section, names the opt-out and links there.
+- `champollion/retention.py`: after every command, one silent, bounded pass in the installer-managed environment removes abandoned install staging (`venv.tmp.<pid>`, `venv.rollback.<pid>` older than six minutes), applies the rollback-copy lifetime below, and removes `champollion-*` entries in the system temporary folder that a killed export left more than a day ago. It reads no work document, opens no socket, starts no process, prints nothing and cannot change the exit status. A checkout, pip install or test run prunes nothing.
+- `tests/test_retention.py` covers first-successful-run and seven-day rollback removal, the marker an update writes, `update --rollback` clearing it, undated and unreadable markers, staging debris and symlink refusal, export-temp expiry, unmanaged runs that touch nothing, and the full CLI path.
 
 ### Changed
 
-- Installer-managed swaps write `venv.first-run.json`. The first successful command from the new environment removes `venv.previous` and the marker; if that run never happens, the copy is removed within seven days of the recorded install time. `champollion update --rollback` restores the copy and clears the marker. An unreadable or undated marker falls back to its own timestamp, and a marker with no readable timestamp is treated as seven days old, so no marker state extends the bound. Contract §4a is now implemented; see `docs/updates.md`.
-- `docs/updates.md` documents the marker-based rollback retention and links to the README Privacy section and `PRIVACY.md`; `docs/export.md` records the export temporary folder and its lifetime. The update-check implementation, prompts and tests from the 1.10.0 release line stay in place: the anonymous daily check with an opt-out remains.
-- Version metadata and release-contract expectations move to 1.10.2 (`pyproject.toml`, `CITATION.cff`, `champollion.__version__`, `scripts/build-release.py`, vendoring commands and README download link).
+- Rollback retention (update contract §4a) now counts from the swap: `champollion update` writes `venv.first-run.json` (the installed version and install time, owner-only) beside `venv`. The first successful command run by that version from the installed environment removes `venv.previous` and the marker; otherwise the first command at least seven days after the recorded install time removes them. A run of another version, such as the process that made the swap, does not count. An unreadable or undated marker falls back to its own modification time, and one with no readable timestamp counts as seven days old, so no marker state extends the bound. A copy swapped in by 1.10.0, which has no marker, keeps the 1.10.0 rule. `update --rollback` restores the copy and removes the marker.
+- `docs/updates.md` documents the rollback retention and a privacy boundary that links the README Privacy section and `PRIVACY.md`; `docs/export.md` records the export temporary folder and its lifetime. The anonymous daily update check and its opt-out (`CHAMPOLLION_NO_UPDATE_CHECK=1` or `"check": false`), the notice, and the `update` commands and exit codes are unchanged from 1.10.0.
+- Version metadata, the vendoring commands and the pip example move to v1.10.2.
 
 ### Fixed
 
-- An old replaced environment is no longer expired early by its own modification time when a fresh marker records a recent swap.
-- `PRIVACY.md` no longer denies the capped install log; it names the actual owner-only state/log files and the exact retention rules.
+- `PRIVACY.md` no longer says that no logs are kept while an automatic-install log exists: it names `update.log`, how it is trimmed, and that it never contains work text. It also lists the first-run marker, install staging, update and installer downloads and the export temporary folder, which the 1.10.0 page left out.
 
 ### Migration
 
-- No protocol, profile, rule ID, CLI flag or report field changed. Re-vendor v1.10.2 to adopt it. To drop an installer rollback copy sooner, delete `venv.previous` yourself or run `champollion update --rollback`; the next command after the first successful run removes it anyway.
+- No protocol, profile, rule ID, CLI flag or report field changed. Re-vendor v1.10.2 to adopt it. To drop an installer rollback copy sooner, delete `venv.previous` yourself or run `champollion update --rollback`.
+- Rollback: re-vendor v1.10.0.
 
 ## [1.10.0] - 2026-11-26
 

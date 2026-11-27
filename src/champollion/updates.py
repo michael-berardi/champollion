@@ -31,9 +31,11 @@ ROLLBACK_MAX_AGE = 7 * DAY
 TIMEOUT = 4.0
 USER_AGENT = "champollion-update-check"
 LOG_LIMIT = 256 * 1024
-# Staging older than an install plus a little slack is abandoned debris.
-INSTALL_TIMEOUT = 5 * 60
-STAGE_PREFIXES = ("venv.tmp.", "venv.rollback.", ".champollion-stage-", "venv.next.")
+# install_release stages ``venv.tmp.<pid>`` (as the installers do) and rollback_install parks the current venv as
+# ``venv.rollback.<pid>``; both are removed by the step that made them. Anything older than this is abandoned debris.
+STAGING_MAX_AGE = 6 * 60
+STAGE_PREFIXES = ("venv.tmp.", "venv.rollback.")
+# Written after a swap; retention removes venv.previous after the first successful run it names.
 FIRST_RUN_MARKER = "venv.first-run.json"
 MANAGERS = ("pip", "uv", "pipx")
 # Agent hosts and worker runs set one of these; the check then stays off.
@@ -484,7 +486,7 @@ def rollback_install() -> dict:
     return {"restored": str(venv)}
 
 
-def cleanup_staging(home: Path, min_age: float = INSTALL_TIMEOUT + 60.0) -> int:
+def cleanup_staging(home: Path, min_age: float = STAGING_MAX_AGE) -> int:
     """Remove stale install staging and swap remnants without following symlinks."""
     base = Path(home)
     if base.is_symlink() or not base.is_dir():
@@ -514,19 +516,18 @@ def cleanup_staging(home: Path, min_age: float = INSTALL_TIMEOUT + 60.0) -> int:
 
 
 def drop_rollback(ran_ok: bool) -> None:
-    """Apply the legacy rollback bound; retention supplies the marker-aware lifetime."""
+    """Remove ``venv.previous`` once the new version has completed a command, or after 7 days at most.
+
+    A swap that wrote ``venv.first-run.json`` is left to ``retention``, which takes the seven-day clock from
+    the marker and counts only a successful run of the version the marker names.
+    """
     home = installer_home()
     if home is None:
         return
+    marker = home / FIRST_RUN_MARKER
+    if marker.exists() or marker.is_symlink():
+        return
     previous = home / "venv.previous"
-    if ran_ok:
-        # A swap in progress for a different version still has its first run ahead.
-        try:
-            marker = json.loads((home / FIRST_RUN_MARKER).read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            marker = {}
-        if isinstance(marker, dict) and marker.get("version") not in (None, __version__):
-            return
     try:
         age = time.time() - previous.stat().st_mtime
     except OSError:

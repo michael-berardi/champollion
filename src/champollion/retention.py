@@ -24,9 +24,8 @@ from .findings import ChampollionError
 from .sources import read_json
 
 # Contract §4a: the rollback copy goes at the latest seven days after the swap.
-ROLLBACK_MAX_AGE = 7 * 24 * 60 * 60
-FIRST_RUN_MARKER = "venv.first-run.json"
-ROLLBACK_SWAP = "venv.rollback-swap"
+ROLLBACK_MAX_AGE = updates.ROLLBACK_MAX_AGE
+FIRST_RUN_MARKER = updates.FIRST_RUN_MARKER
 MARKER_SCHEMA = "champollion-first-run/1"
 # An export that is killed cannot remove its temporary browser profile itself.
 EXPORT_TMP_PREFIX = "champollion-"
@@ -140,11 +139,8 @@ def _rollback_retention(home: Path, now: float, successful: bool,
         if first_run or (managed and expired):
             removed = _remove(previous)
     cleared = False
-    if managed and (first_run or expired or not previous.exists()):
-        leftover = home / ROLLBACK_SWAP
-        if leftover.exists() or leftover.is_symlink():
-            _remove(leftover)
-        if marker.exists() or marker.is_symlink():
+    if managed and (first_run or expired or not (previous.exists() or previous.is_symlink())):
+        if has_marker:
             cleared = _remove(marker)
     return removed, cleared
 
@@ -182,19 +178,20 @@ def prune_export_temp(root: Optional[Any] = None, now: Optional[float] = None) -
 def prune(home: Optional[Any] = None, now: Optional[float] = None, successful: bool = True,
           running_prefix: Optional[Any] = None) -> dict:
     """Apply every local lifetime; bounded work only, safe to call after any command."""
-    base = Path(home) if home is not None else updates._install_home()
+    if home is None:
+        home = updates._install_home()  # None unless this process runs <home>/venv of an installer copy
+    base = Path(home) if home is not None else None
     now = time.time() if now is None else float(now)
-    report = {"home": str(base), "managed": False, "staging_removed": 0,
+    report = {"home": str(base or ""), "managed": False, "staging_removed": 0,
               "previous_removed": False, "marker_cleared": False,
               "export_temp_removed": 0}
-    if base.is_dir() and not base.is_symlink():
+    if base is not None and base.is_dir() and not base.is_symlink():
         report["managed"] = _runs_from(base, running_prefix)
     # Every automatic deletion below belongs to the installer-managed copy.
     # A checkout, pip install or test run must not prune somebody's real install
     # home or the machine-wide temporary folder.
     if report["managed"]:
-        report["staging_removed"] = updates.cleanup_staging(
-            base, min_age=updates.INSTALL_TIMEOUT + 60.0)
+        report["staging_removed"] = updates.cleanup_staging(base)
         removed, cleared = _rollback_retention(base, now, successful, True)
         report["previous_removed"] = removed
         report["marker_cleared"] = cleared

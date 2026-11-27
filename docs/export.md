@@ -59,8 +59,8 @@ Export writes nothing outside the output paths you name. Each render uses one
 temporary folder in the system temporary folder (`champollion-*`) holding the
 page, the browser profile and the intermediate PDF or cover; the folder is
 removed when the render finishes, including when it fails. If the process is
-killed before that happens, the next successful command removes leftovers older
-than a day. The renderer never uploads the book. [PRIVACY.md](../PRIVACY.md) lists
+killed before that happens, the next command run from an installer-managed
+install removes leftovers older than a day. The renderer never uploads the book. [PRIVACY.md](../PRIVACY.md) lists
 every local write with its lifetime.
 
 ## Options

@@ -1,6 +1,6 @@
 """Retention tests: every local write has a lifetime and no debris is left.
 
-Each case uses a temporary install home, cache, config and temporary folder, so
+Each case uses a temporary install home, update cache and temporary folder, so
 no real user directory is touched. No test opens a socket or runs an installer.
 """
 from __future__ import annotations
@@ -19,31 +19,28 @@ from unittest import mock
 
 from champollion import cli, retention, updates
 
-ROOT = Path(__file__).resolve().parent.parent
 DAY = 24 * 60 * 60
 
 
 class RetentionCase(unittest.TestCase):
     def setUp(self):
-        self.temp = tempfile.TemporaryDirectory(prefix=".test-retention-", dir=ROOT / "tests/fixtures")
+        self.temp = tempfile.TemporaryDirectory(prefix="test-retention-")
         self.addCleanup(self.temp.cleanup)
-        self.base = Path(self.temp.name)
+        self.base = Path(self.temp.name).resolve()
         self.home = self.base / "install-home"
         self.venv = self.home / "venv"
         self.venv.mkdir(parents=True)
         self.tmp_root = self.base / "tmp"
         self.tmp_root.mkdir()
-        patch = mock.patch.dict(os.environ, {
-            "CHAMPOLLION_CONFIG_DIR": str(self.base / "config"),
-            "CHAMPOLLION_CACHE_DIR": str(self.base / "cache"),
-            "CHAMPOLLION_HOME": str(self.home),
-            "CHAMPOLLION_NO_UPDATE_CHECK": "1",
-            "CHAMPOLLION_AGENT": "", "AGENT_MODE": "", "CLAUDECODE": "",
-            "CODEX_CLI": "", "PI_AGENT": "", "ANTIGRAVITY_AGENT": "", "DSH_AGENT": "",
-            "CI": "", "NO_COLOR": "1",
-        })
-        patch.start()
-        self.addCleanup(patch.stop)
+        environment = {name: "" for name in updates.AGENT_FLAGS}
+        environment.update(CHAMPOLLION_HOME=str(self.home), CHAMPOLLION_NO_UPDATE_CHECK="1",
+                           CHAMPOLLION_UPDATE_API="", CHAMPOLLION_RELEASE_BASE="", CI="", NO_COLOR="1")
+        # A managed-path test must never prune the real system temporary folder.
+        for patcher in (mock.patch.dict(os.environ, environment),
+                        mock.patch.object(updates, "cache_dir", return_value=self.base / "cache"),
+                        mock.patch.object(tempfile, "tempdir", str(self.tmp_root))):
+            patcher.start()
+            self.addCleanup(patcher.stop)
 
     def age(self, path, days):
         stamp = time.time() - days * DAY
@@ -183,27 +180,33 @@ class DebrisTests(RetentionCase):
         outside = self.base / "outside"
         outside.mkdir()
         (outside / "keep.txt").write_text("keep", encoding="utf-8")
-        stale_stage = self.home / ".champollion-stage-stale"
+        stale_stage = self.home / "venv.tmp.999"
         stale_stage.mkdir()
         self.age(stale_stage, 0.3)
-        fresh_stage = self.home / ".champollion-stage-fresh"
+        fresh_stage = self.home / "venv.tmp.1000"
         fresh_stage.mkdir()
-        stale_next = self.home / "venv.next.999"
-        stale_next.mkdir()
-        self.age(stale_next, 0.3)
-        link = self.home / ".champollion-stage-link"
+        stale_spare = self.home / "venv.rollback.999"
+        stale_spare.mkdir()
+        self.age(stale_spare, 0.3)
+        link = self.home / "venv.tmp.link"
         link.symlink_to(outside, target_is_directory=True)
         stamp = time.time() - 0.3 * DAY
         os.utime(link, (stamp, stamp), follow_symlinks=False)
         keep = self.home / "bin"
         keep.mkdir()
+        # Not staging: the installers clear venv.old themselves; nothing else is touched.
+        other = self.home / "venv.old"
+        other.mkdir()
+        self.age(other, 0.3)
         report = retention.prune(self.home, successful=True, running_prefix=self.venv)
-        self.assertGreaterEqual(report["staging_removed"], 3)
+        self.assertEqual(report["staging_removed"], 3)
         self.assertFalse(stale_stage.exists())
-        self.assertFalse(stale_next.exists())
+        self.assertFalse(stale_spare.exists())
         self.assertFalse(link.is_symlink())
         self.assertTrue(fresh_stage.is_dir())
         self.assertTrue(keep.is_dir())
+        self.assertTrue(other.is_dir())
+        self.assertTrue(self.venv.is_dir())
         self.assertEqual((outside / "keep.txt").read_text(encoding="utf-8"), "keep")
 
     def test_abandoned_export_temp_folders_expire(self):
@@ -230,9 +233,6 @@ class InstallMarkerTests(RetentionCase):
         name = "champollion_protocol-1.11.0-py3-none-any.whl"
         wheel = b"wheel bytes"
         sums = hashlib.sha256(wheel).hexdigest() + "  " + name + "\n"
-        result = {"latest": "1.11.0", "assets": [
-            {"name": "SHA256SUMS", "url": "https://invalid.test/sums"},
-            {"name": name, "url": "https://invalid.test/wheel"}]}
 
         def asset(url, timeout=10.0):
             return sums.encode() if url.endswith("SHA256SUMS") else wheel
@@ -243,12 +243,16 @@ class InstallMarkerTests(RetentionCase):
             output = "1.11.0\n" if "-c" in argv else ""
             return subprocess.CompletedProcess(argv, 0, output, "")
 
-        with mock.patch.object(updates, "installer_home", return_value=self.home):
+        with mock.patch.dict(os.environ, {"CHAMPOLLION_RELEASE_BASE": "https://invalid.test/v1.11.0"}):
             outcome = updates.install_release(self.home, "1.11.0", "v1.11.0", get=asset, run=run)
         self.assertEqual(outcome["version"], "1.11.0")
         marker = self.home / retention.FIRST_RUN_MARKER
         self.assertTrue(marker.is_file())
-        self.assertEqual(json.loads(marker.read_text(encoding="utf-8"))["version"], "1.11.0")
+        record = json.loads(marker.read_text(encoding="utf-8"))
+        self.assertEqual(record["version"], "1.11.0")
+        self.assertLess(abs(record["at"] - time.time()), 60)
+        if os.name != "nt":
+            self.assertEqual(marker.stat().st_mode & 0o777, 0o600)
         self.assertTrue((self.home / "venv").is_dir())
         # The swap kept the environment it replaced as the one rollback copy.
         self.assertTrue((self.home / "venv.previous").is_dir())
@@ -262,7 +266,7 @@ class CliRetentionTests(RetentionCase):
     def test_unmanaged_command_leaves_install_home_and_system_temp_alone(self):
         sentinel_home = self.base / "unmanaged-home"
         sentinel_home.mkdir()
-        stale_stage = sentinel_home / ".champollion-stage-stale"
+        stale_stage = sentinel_home / "venv.tmp.999"
         stale_stage.mkdir()
         self.age(stale_stage, 0.3)
         previous = sentinel_home / "venv.previous"
@@ -294,6 +298,46 @@ class CliRetentionTests(RetentionCase):
     def test_retention_failure_never_changes_the_exit_status(self):
         with mock.patch.object(retention, "prune", side_effect=OSError("denied")):
             self.assertEqual(self.call(["rules"]), 0)
+
+    def test_copy_with_no_install_home_is_a_no_op(self):
+        with mock.patch.object(updates, "_install_home", return_value=None):
+            report = retention.prune()
+        self.assertEqual((report["home"], report["managed"]), ("", False))
+
+    def test_managed_command_keeps_a_fresh_swap_until_its_first_successful_run(self):
+        # The full CLI path: updates.drop_rollback must defer to the marker, so an
+        # old replaced venv is not expired early by its own mtime.
+        previous = self.age(self.rollback_copy(), 8)
+        marker = self.home / retention.FIRST_RUN_MARKER
+        retention.mark_pending_first_run(self.home, updates.__version__)
+        with mock.patch("sys.prefix", str(self.venv)):
+            self.assertEqual(updates.installer_home(), self.home)
+            with mock.patch.object(cli, "_dispatch", return_value=1):
+                self.assertEqual(self.call(["rules"]), 1)
+            self.assertTrue(previous.is_dir())
+            self.assertTrue(marker.is_file())
+            self.assertEqual(self.call(["rules"]), 0)
+        self.assertFalse(previous.exists())
+        self.assertFalse(marker.exists())
+
+    def test_managed_run_of_another_version_keeps_the_copy(self):
+        # The process that performed the swap still runs the old version.
+        previous = self.rollback_copy()
+        marker = self.home / retention.FIRST_RUN_MARKER
+        retention.mark_pending_first_run(self.home, "99.0.0")
+        with mock.patch("sys.prefix", str(self.venv)):
+            self.assertEqual(self.call(["rules"]), 0)
+        self.assertTrue(previous.is_dir())
+        self.assertTrue(marker.is_file())
+
+    def test_managed_command_without_a_marker_keeps_the_legacy_rule(self):
+        previous = self.rollback_copy()
+        with mock.patch("sys.prefix", str(self.venv)):
+            with mock.patch.object(cli, "_dispatch", return_value=1):
+                self.call(["rules"])
+            self.assertTrue(previous.is_dir())
+            self.assertEqual(self.call(["rules"]), 0)
+        self.assertFalse(previous.exists())
 
 
 if __name__ == "__main__":
