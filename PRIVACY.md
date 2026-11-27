@@ -59,18 +59,21 @@ follows the folder's own permissions.
 | Source snapshots | `sources/raw/` in the project | Until you delete them; replaced only by `source add --replace`. |
 | Packets, reviewer replies, review records, assembled work copies | The `--out` or output paths you name | Until you delete them. |
 | Exported books (PDF, EPUB) | The output paths you name | Until you delete them. |
-| Export temp folder (`champollion-*`: the HTML page, the temporary browser profile, the intermediate PDF or cover) | The system temporary folder | Deleted when the export finishes. A killed export's leftovers are removed by the next successful command once they are a day old. |
+| Export temp folder (`champollion-*`: the HTML page, the temporary browser profile, the intermediate PDF or cover) | The system temporary folder | Deleted when the export finishes. A killed export's leftovers are removed by the next successful command run from an installer-managed install once they are a day old. |
 | Vendored snapshots | The directory you name with `champollion vendor --into` | Until you delete them. |
 | Preferences: `config.json` (check on/off, auto install, skipped version) | `~/.config/champollion` (Windows: `%LOCALAPPDATA%\Champollion`) | Until you change them or delete the file. Rewritten in place, never appended. |
 | Update cache: `updates.json` (last check time, latest version, release notes, last error, last install record) | `~/Library/Caches/champollion` on macOS, `~/.cache/champollion` on Linux, `%LOCALAPPDATA%\Champollion\Cache` on Windows | Rewritten at most daily while checks are on; holds no work text. Delete the file to reset it. |
 | Install log: `updates-install.log`, one JSON line per install attempt | The same cache folder | Capped at 256 KB; the oldest lines are dropped first. |
 | Installed environment and command shim | `~/.champollion` (Windows: `%LOCALAPPDATA%\Champollion`), shim in `~/.local/bin` | Until you reinstall, uninstall, or roll back. |
-| Install staging: `.champollion-stage-*`, `venv.next.<pid>` | The install home | Removed on success, failure, timeout or a refused checksum; anything older than about six minutes is pruned by the next command. |
-| Rollback copy: `venv.previous`, with its `venv.first-run.json` marker and any `venv.rollback-swap` leftover | The install home | Removed after the installed version has run successfully once, or seven days after the install at the latest. `champollion update --rollback` restores it and clears the marker; a later install replaces it. |
+| Install staging: `.champollion-stage-*`, `venv.next.<pid>` | The install home | Removed on success, failure, timeout or a refused checksum; anything older than about six minutes is pruned by the next command run from that installer-managed install. |
+| Rollback copy: `venv.previous`, with its `venv.first-run.json` marker and any `venv.rollback-swap` leftover | The install home | Removed after the installed version has run successfully once, or seven days after the install at the latest. The marker's install time sets that clock when the marker exists, so an old replaced environment is not expired early. `champollion update --rollback` restores it and clears the marker; a later install replaces it. |
 | Python bytecode caches (`__pycache__`) | Next to the installed modules, and in the install home | Code, not your text; deleted with the environment. |
 
-No logs, history or transcripts are stored. The toolkit writes no other file,
-and it never copies a work document into a cache, a log or the install home.
+No logs of your text, commands, history or transcripts are stored. The one
+exception listed above is `updates-install.log`, which records install attempts
+only (version, result and error cause), is capped at 256 KB and never contains
+work text. The toolkit writes no other file, and it never copies a work document
+into a cache, a log or the install home.
 
 ## Retention that runs by itself
 
@@ -78,17 +81,21 @@ and it never copies a work document into a cache, a log or the install home.
   atomically; they do not grow with use.
 - **Install log** keeps complete JSON lines and at most 256 KB of them.
 - **Install staging** is deleted by the install that made it, and stale staging
-  is pruned before the next install and by the next successful command.
+  is pruned before the next install and by the next command from that install.
 - **Rollback copy** is dropped by the first successful run of the version that
   was just installed, which is why it is kept at all; if that run never happens,
-  the copy is removed seven days after the install. `update --auto off` stops
-  future automatic installs but is not a deletion command; remove `venv.previous`
+  the copy is removed seven days after the install time recorded in its marker
+  (or from the copy's own timestamp for an install without a marker). `update --auto off`
+  stops future automatic installs but is not a deletion command; remove `venv.previous`
   yourself if you want it gone sooner, or run `update --rollback` first.
 - **Export leftovers** in the system temporary folder are removed by the next
-  successful command once they are a day old.
+  successful command from an installer-managed install once they are a day old.
 
 These steps run after the command has finished, print nothing and cannot change
-a command's exit status. Set `CHAMPOLLION_HOME`, `CHAMPOLLION_CONFIG_DIR`,
+a command's exit status. Staging and temporary-folder cleanup runs only from the
+installer-managed environment: a checkout, a pip install or a test run leaves a
+real install home and the shared system temporary folder untouched. Set
+`CHAMPOLLION_HOME`, `CHAMPOLLION_CONFIG_DIR`,
 `CHAMPOLLION_CACHE_DIR` or `TMPDIR` to move the corresponding files.
 
 ## Deleting your data

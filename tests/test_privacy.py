@@ -123,6 +123,13 @@ class PrivacyTests(unittest.TestCase):
                        "venv.previous", "seven days", "updates-install.log"):
             self.assertIn(phrase, detail.lower())
 
+    def test_privacy_detail_does_not_deny_the_capped_install_log(self):
+        detail = (ROOT / "PRIVACY.md").read_text(encoding="utf-8")
+        normalized = " ".join(detail.lower().split())
+        self.assertNotIn("no logs, history or transcripts are stored", normalized)
+        self.assertIn("the one exception listed above is `updates-install.log`", normalized)
+        self.assertIn("never contains work text", normalized)
+
     def test_privacy_detail_states_every_local_write_and_lifetime(self):
         detail = (ROOT / "PRIVACY.md").read_text(encoding="utf-8").lower()
         for entry in ("champollion.json", "sources/manifest.json", "updates.json",

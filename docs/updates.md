@@ -87,14 +87,18 @@ run successfully once, and at the latest within seven days. The swap writes a
 small `venv.first-run.json` marker next to the environment; the first successful
 command run from the newly installed environment then removes `venv.previous` and
 the marker. If that run never happens, the copy is removed seven days after the
-install at the latest, and the same pass clears a leftover `venv.rollback-swap`.
+install at the latest: the marker's recorded install time supplies that clock
+when the marker exists, not the replaced venv's older modification time. The
+same pass clears a leftover `venv.rollback-swap`.
 `champollion update --rollback` restores the previous environment first and clears
 the marker, so a restored copy is not deleted underneath you. `update --auto off`
 clears the saved automatic-install preference and stops future automatic
 installs; it does not delete the rollback copy. Deletion is silent, happens after
 the command has finished, and cannot change an exit status. A checkout, a pip
 install or a test run leaves another install's rollback copy alone: only code
-running from the installer-managed environment applies the first-run rule.
+running from the installer-managed environment applies the first-run rule. That
+same gate keeps staging and abandoned export-temp cleanup inside the managed
+install instead of pruning a real install home or the shared temporary folder.
 
 Package-manager installs are detected instead of overwritten. The prompt names
 the right command (`uv tool upgrade champollion-protocol`,

@@ -101,11 +101,19 @@ def _rollback_retention(home: Path, now: float, successful: bool,
     data = _marker_data(marker)
     installed = str(data.get("version") or "")
     first_run = bool(successful and managed and installed and installed == __version__)
-    ages = [age for age in (_age(previous, now),) if age is not None]
     recorded = data.get("at")
+    has_marker = marker.exists() or marker.is_symlink()
     if isinstance(recorded, (int, float)) and not isinstance(recorded, bool):
-        ages.append(now - float(recorded))
-    age = max(ages) if ages else None
+        # The marker records the install/swap time. The old venv's mtime may be
+        # years old and must not expire a copy that the swap just made current.
+        age = now - float(recorded)
+    elif has_marker:
+        # A present but unreadable or undated marker gives no install time; do
+        # not guess one from the replaced directory's inherited mtime.
+        age = None
+    else:
+        # Legacy installs without a marker still get the bounded folder clock.
+        age = _age(previous, now)
     expired = bool(age is not None and age >= ROLLBACK_MAX_AGE)
     removed = False
     if previous.exists() or previous.is_symlink():
@@ -161,10 +169,14 @@ def prune(home: Optional[Any] = None, now: Optional[float] = None, successful: b
               "export_temp_removed": 0}
     if base.is_dir() and not base.is_symlink():
         report["managed"] = _runs_from(base, running_prefix)
+    # Every automatic deletion below belongs to the installer-managed copy.
+    # A checkout, pip install or test run must not prune somebody's real install
+    # home or the machine-wide temporary folder.
+    if report["managed"]:
         report["staging_removed"] = updates.cleanup_staging(
             base, min_age=updates.INSTALL_TIMEOUT + 60.0)
-        removed, cleared = _rollback_retention(base, now, successful, report["managed"])
+        removed, cleared = _rollback_retention(base, now, successful, True)
         report["previous_removed"] = removed
         report["marker_cleared"] = cleared
-    report["export_temp_removed"] = prune_export_temp(now=now)
+        report["export_temp_removed"] = prune_export_temp(now=now)
     return report

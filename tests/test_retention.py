@@ -100,6 +100,22 @@ class RollbackRetentionTests(RetentionCase):
         self.assertFalse(report["previous_removed"])
         self.assertTrue(fresh.exists())
 
+    def test_fresh_marker_keeps_an_old_copy_until_the_first_success(self):
+        now = time.time()
+        # The replaced venv inherited an old mtime; the swap just happened.
+        previous = self.age(self.rollback_copy(), 8)
+        marker = self.home / retention.FIRST_RUN_MARKER
+        retention.mark_pending_first_run(self.home, updates.__version__, now=now)
+        report = retention.prune(self.home, now=now, successful=False, running_prefix=self.venv)
+        self.assertFalse(report["previous_removed"])
+        self.assertTrue(previous.is_dir())
+        self.assertTrue(marker.is_file())
+        report = retention.prune(self.home, now=now, successful=True, running_prefix=self.venv)
+        self.assertTrue(report["previous_removed"])
+        self.assertTrue(report["marker_cleared"])
+        self.assertFalse(previous.exists())
+        self.assertFalse(marker.exists())
+
     def test_rollback_restores_the_copy_and_clears_the_marker(self):
         previous = self.rollback_copy()
         retention.mark_pending_first_run(self.home, updates.__version__)
@@ -191,6 +207,30 @@ class CliRetentionTests(RetentionCase):
     def call(self, argv):
         with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
             return cli.main(argv)
+
+    def test_unmanaged_command_leaves_install_home_and_system_temp_alone(self):
+        sentinel_home = self.base / "unmanaged-home"
+        sentinel_home.mkdir()
+        stale_stage = sentinel_home / ".champollion-stage-stale"
+        stale_stage.mkdir()
+        self.age(stale_stage, 0.3)
+        previous = sentinel_home / "venv.previous"
+        previous.mkdir()
+        self.age(previous, 8)
+        retention.mark_pending_first_run(
+            sentinel_home, updates.__version__, now=time.time() - 9 * DAY)
+        marker = sentinel_home / retention.FIRST_RUN_MARKER
+        original_marker = marker.read_bytes()
+        stale_export = self.tmp_root / "champollion-unmanaged"
+        stale_export.mkdir()
+        self.age(stale_export, 2)
+        with mock.patch.object(updates, "_install_home", return_value=sentinel_home), \
+             mock.patch.object(retention.tempfile, "gettempdir", return_value=str(self.tmp_root)):
+            self.assertEqual(self.call(["rules"]), 0)
+        self.assertTrue(stale_stage.is_dir())
+        self.assertTrue(previous.is_dir())
+        self.assertEqual(marker.read_bytes(), original_marker)
+        self.assertTrue(stale_export.is_dir())
 
     def test_every_command_applies_retention_after_it_finishes(self):
         with mock.patch.object(retention, "prune", return_value={"ok": True}) as prune:
