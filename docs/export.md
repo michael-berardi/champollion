@@ -29,6 +29,15 @@ A missing engine fails with a named error (`ENGINE-MISSING`); nothing is downloa
 
 Chrome's PDF creation and modification dates are normalized to the Unix epoch (1970-01-01 00:00:00 UTC), rather than the build time. Contents leaders are solid rather than dotted to avoid Chrome's repeated dotted-border paint operations. These changes remove sources of byte variation; byte-identical PDFs are not guaranteed across Chrome versions, platforms, fonts, or other build environments. Keep the inputs, options, engine, fonts, and environment fixed when comparing builds.
 
+## Cover and EPUB reproducibility
+
+The cover is captured only after the page reports that its own fonts are loaded: the capture waits on
+`document.fonts.ready` and two painted frames, the same wait the print path makes. A build therefore
+cannot photograph the fallback face in a font's place, and two builds of unchanged sources keep the
+same cover bytes and so the same EPUB bytes. A page that never reports its fonts fails with
+`ENGINE-FONTS` rather than shipping a cover set in a substitute face. The capture drives Chrome over
+its DevTools pipe, so no port is opened and nothing listens.
+
 The date normalizer accepts Chrome's supported classic, single-revision PDF metadata representation. Unsupported or malformed metadata fails with `ENGINE-PDF-METADATA` rather than producing a PDF with guessed dates; incomplete PDFs or missing cross-reference tables fail with `ENGINE-FAILED`.
 
 ## Layout decisions the exporter makes

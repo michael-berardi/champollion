@@ -4,6 +4,23 @@ Changes are recorded in [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
 Champollion enforces mechanical requirements and records judgement (VER-1). It does not translate or certify sense. The dated 1.0.0 entry records release contents, not approval to publish; SPEC.md remains a working specification until publication is approved.
 
+## [1.10.3] - 2026-11-28
+
+### Fixed
+
+- The cover screenshot waits for the page's fonts. `_screenshot` gave Chrome a flat `--virtual-time-budget=20000` and no wait on `document.fonts.ready`, so a capture could fire before a web font arrived and paint the fallback face in the edition subtitle's place. The same sources then produced a cover JPEG of a different size and an EPUB that flipped between builds (99315 and 102753 bytes for one book), and the stale manifest blocked a consumer's deploy. The capture now renders the page, waits on `document.fonts.ready` and two painted frames, and only then captures, mirroring the wait `typeset.py` already makes before measuring.
+- A cover page that never reports its fonts fails with `ENGINE-FONTS` instead of returning a picture set in a substitute face. The named error is retried once, like the other renderer failures, and no capture is written when the wait does not finish.
+
+### Changed
+
+- The cover capture drives Chrome over its DevTools pipe (`--remote-debugging-pipe`, protocol on a pipe pair) instead of `--screenshot`. No port is opened, nothing listens, and the offline flags are unchanged, so the renderer keeps its no-network posture. The capture path is new, so each cover is rendered once more with this release; a 1.10.2 cover and a 1.10.3 cover differ only in sub-pixel rasterization of the same page (mean channel difference 0.83 of 255 on a 1440x2160 reference cover, identical to the eye), so rebuild downloads once after re-vendoring.
+- `test_export.py` covers the contract (the capture asks for the fonts before shooting, a silent page is refused with no capture) and the real engine: a font handed to the page as a `data:` URI, which nothing fetches and no render budget waits for, must produce the same bytes as the same font loaded from disk and must not match the substitute-face capture; two builds of a book with a webfont cover must produce identical EPUB bytes.
+
+### Migration
+
+- No protocol, profile, rule ID, CLI flag or report field changed. Re-vendor v1.10.3 to adopt the fix. Rebuild covers to replace any that were rendered in a substitute face.
+- Rollback: re-vendor v1.10.2.
+
 ## [1.10.2] - 2026-11-27
 
 ### Added

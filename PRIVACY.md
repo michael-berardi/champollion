@@ -49,7 +49,8 @@ Network use happens only in these cases:
   installed on this machine to render a local HTML page. That browser is launched
   with background networking, component updates, metrics, extensions and DNS
   disabled, with `DO_NOT_TRACK=1` and a temporary profile; the book is not
-  uploaded.
+  uploaded. The cover capture drives that browser over a pipe pair, not a
+  debugging port, so no socket is opened and nothing listens on the machine.
 - **Reviewers and model providers you choose.** If you send packets or books to
   a reviewer or model provider of your choice, that third party receives what
   you send it. Champollion does not contact that provider.

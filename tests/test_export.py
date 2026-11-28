@@ -1,5 +1,7 @@
 """Book export: reference-number parsing, typesetting decisions, EPUB structure, optional PDF."""
+import base64
 import contextlib
+import hashlib
 import importlib.util
 import io
 import json
@@ -788,6 +790,136 @@ class EngineRetryCase(unittest.TestCase):
                 pdfmod.html_to_png("<p/>", "chrome", 10, 10)
         finally:
             pdfmod._screenshot = original
+
+
+COVER_PAGE = """<!doctype html><html><head><meta charset="utf-8"/>
+<style>@font-face{font-family:"Cormorant Garamond";font-style:italic;font-display:swap;src:url(%s)}</style>
+<style>html,body{margin:0;background:#000;color:#fff;font:italic 60px "Cormorant Garamond",serif}
+body{padding:20px}</style></head><body>Quiet subtitle WWWWW</body></html>"""
+
+
+def _cover_font(directory) -> Path:
+    """A synthetic italic face with its own metrics, so a substitute face is visible in the bytes."""
+    from fontTools.fontBuilder import FontBuilder
+    from fontTools.pens.ttGlyphPen import TTGlyphPen
+    path = Path(directory) / "cover-test.ttf"
+    builder = FontBuilder(1000, isTTF=True)
+    pen = TTGlyphPen(None)
+    pen.moveTo((0, 0)); pen.lineTo((620, 0)); pen.lineTo((620, 700)); pen.lineTo((0, 700)); pen.closePath()
+    glyph = pen.glyph()
+    order = [".notdef", "space"] + [f"g{index}" for index in range(1, 95)]
+    builder.setupGlyphOrder(order)
+    builder.setupCharacterMap({0x20: "space", **{0x20 + index: f"g{index}" for index in range(1, 95)}})
+    builder.setupGlyf({name: glyph for name in order})
+    builder.setupHorizontalMetrics({name: (300 if name == "space" else 1000, 0) for name in order})
+    builder.setupHorizontalHeader(ascent=800, descent=-200)
+    builder.setupNameTable({"familyName": "Cormorant Garamond", "styleName": "Italic"})
+    builder.setupOS2(sTypoAscender=800, sTypoDescender=-200)
+    builder.setupPost()
+    builder.save(str(path))
+    return path
+
+
+class CoverCaptureContractCase(unittest.TestCase):
+    """The capture asks the page for its fonts first, and never shoots a page that stays silent."""
+
+    class Recorder:
+        def __init__(self, *args, **kwargs):
+            self.calls = []
+            self.closed = False
+
+        def call(self, method, params=None, session_id=None, cause=None):
+            self.calls.append((method, params or {}, cause))
+            if method == "Target.createTarget":
+                return {"targetId": "target"}
+            if method == "Target.attachToTarget":
+                return {"sessionId": "session"}
+            if method == "Page.captureScreenshot":
+                return {"data": base64.b64encode(b"png").decode()}
+            return {}
+
+        def close(self):
+            self.closed = True
+
+    def _render(self, *, stall=False):
+        from champollion.export import pdf as pdfmod
+        recorder = self.Recorder()
+
+        def stalling_call(method, params=None, session_id=None, cause=None):
+            if stall and method == "Runtime.evaluate":
+                raise ChampollionError("the page did not report its fonts", cause="ENGINE-FONTS")
+            return self.Recorder.call(recorder, method, params, session_id, cause)
+
+        recorder.call = stalling_call
+        with patch.object(pdfmod, "DevToolsPipe", lambda *args, **kwargs: recorder):
+            try:
+                return pdfmod.html_to_png("<p/>", "chrome", 10, 10, attempts=1), recorder
+            except ChampollionError as exc:
+                return exc, recorder
+
+    def test_the_page_reports_its_fonts_before_the_capture(self):
+        data, recorder = self._render()
+        self.assertEqual(data, b"png")
+        methods = [method for method, _, _ in recorder.calls]
+        self.assertLess(methods.index("Runtime.evaluate"), methods.index("Page.captureScreenshot"))
+        self.assertLess(methods.index("Page.navigate"), methods.index("Runtime.evaluate"))
+        wait = next(params for method, params, _ in recorder.calls if method == "Runtime.evaluate")
+        self.assertIn("document.fonts.ready", wait["expression"])
+        self.assertTrue(wait["awaitPromise"])
+        causes = {method: cause for method, _, cause in recorder.calls}
+        self.assertEqual(causes["Runtime.evaluate"], "ENGINE-FONTS")
+        self.assertIn("Emulation.setDeviceMetricsOverride", methods)
+        self.assertTrue(recorder.closed)
+
+    def test_a_page_that_never_reports_its_fonts_is_not_captured(self):
+        error, recorder = self._render(stall=True)
+        self.assertIsInstance(error, ChampollionError)
+        self.assertEqual(error.cause, "ENGINE-FONTS")
+        self.assertNotIn("Page.captureScreenshot", [method for method, _, _ in recorder.calls])
+        self.assertTrue(recorder.closed)
+
+
+@unittest.skipUnless(_chrome(), "Chrome/Chromium not installed")
+@unittest.skipUnless(importlib.util.find_spec("fontTools"), "fonttools not installed (needed to build the cover font)")
+class CoverFontCase(unittest.TestCase):
+    """The cover is shot after the page's own font, so the same book keeps the same bytes.
+
+    A font handed to the page as a data: URI is fetched from nothing, so no render budget and no
+    network idle can tell Chrome to wait for it: that form is where a capture taken before the font
+    was in always painted the fallback face. Under load the same happened for file: fonts, which is
+    what made two builds of one book differ.
+    """
+
+    def test_the_capture_waits_for_the_page_font(self):
+        from champollion.export import pdf as pdfmod
+        chrome = _chrome()
+        with tempfile.TemporaryDirectory() as tmp:
+            font = _cover_font(tmp)
+            def shot(url):
+                return hashlib.sha256(pdfmod.html_to_png(COVER_PAGE % url, chrome, 576, 300, 2.5)).digest()
+            loaded = shot(font.as_uri())
+            substitute = shot((Path(tmp) / "missing.ttf").as_uri())
+            inline = "data:font/ttf;base64," + base64.b64encode(font.read_bytes()).decode()
+            first, second = shot(inline), shot(inline)
+        self.assertNotEqual(loaded, substitute)   # the face does change the picture
+        self.assertEqual(first, loaded)           # captured with the face, not with a substitute
+        self.assertEqual(second, first)
+
+    def test_two_builds_of_a_book_with_a_webfont_cover_are_identical(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            font = _cover_font(tmp)
+            css = Path(tmp) / "fonts.css"
+            css.write_text('@font-face{font-family:"Cormorant Garamond";font-style:normal;font-weight:400;'
+                           f'src:url({font.as_uri()})}}\n' + '@font-face{font-family:"Cormorant Garamond";'
+                           f'font-style:italic;font-weight:400;src:url({font.as_uri()})}}\n', encoding="utf-8")
+            work = write(tmp, "chaptered.md", CHAPTERS)
+            built = []
+            for attempt in ("one", "two"):
+                files = export_book(work, "musean", ["epub"], str(Path(tmp) / attempt),
+                                    Options(unit_noun="Chapter", font_css=str(css)))
+                built.append(Path(files[0]["path"]).read_bytes())
+        self.assertTrue(built[0].startswith(b"PK"))
+        self.assertEqual(built[0], built[1])
 
 
 @unittest.skipUnless(_chrome(), "Chrome/Chromium not installed")
