@@ -5,6 +5,7 @@ import hashlib
 import importlib.util
 import io
 import json
+import os
 import re
 import sys
 import tempfile
@@ -841,13 +842,16 @@ class CoverCaptureContractCase(unittest.TestCase):
         def close(self):
             self.closed = True
 
-    def _render(self, *, stall=False):
+    def _render(self, *, stall=False, replies=None):
         from champollion.export import pdf as pdfmod
         recorder = self.Recorder()
 
         def stalling_call(method, params=None, session_id=None, cause=None):
             if stall and method == "Runtime.evaluate":
                 raise ChampollionError("the page did not report its fonts", cause="ENGINE-FONTS")
+            if replies and method in replies:
+                recorder.calls.append((method, params or {}, cause))
+                return replies[method]
             return self.Recorder.call(recorder, method, params, session_id, cause)
 
         recorder.call = stalling_call
@@ -873,6 +877,22 @@ class CoverCaptureContractCase(unittest.TestCase):
 
     def test_a_page_that_never_reports_its_fonts_is_not_captured(self):
         error, recorder = self._render(stall=True)
+        self.assertIsInstance(error, ChampollionError)
+        self.assertEqual(error.cause, "ENGINE-FONTS")
+        self.assertNotIn("Page.captureScreenshot", [method for method, _, _ in recorder.calls])
+        self.assertTrue(recorder.closed)
+
+    def test_a_failed_navigation_is_not_captured(self):
+        error, recorder = self._render(replies={"Page.navigate": {"frameId": "f", "errorText": "net::ERR_FILE_NOT_FOUND"}})
+        self.assertIsInstance(error, ChampollionError)
+        self.assertEqual(error.cause, "ENGINE-FAILED")
+        self.assertIn("ERR_FILE_NOT_FOUND", str(error))
+        self.assertNotIn("Page.captureScreenshot", [method for method, _, _ in recorder.calls])
+        self.assertTrue(recorder.closed)
+
+    def test_a_wait_that_throws_is_not_captured(self):
+        error, recorder = self._render(replies={"Runtime.evaluate": {"result": {"type": "object"},
+                                                                     "exceptionDetails": {"text": "Uncaught"}}})
         self.assertIsInstance(error, ChampollionError)
         self.assertEqual(error.cause, "ENGINE-FONTS")
         self.assertNotIn("Page.captureScreenshot", [method for method, _, _ in recorder.calls])
@@ -920,6 +940,172 @@ class CoverFontCase(unittest.TestCase):
                 built.append(Path(files[0]["path"]).read_bytes())
         self.assertTrue(built[0].startswith(b"PK"))
         self.assertEqual(built[0], built[1])
+
+
+# A stand-in browser for the pipe: it answers each command on fd 4 with what it read on fd 3,
+# after an unrelated event, so crossed or borrowed descriptors show up as a wrong answer.
+PIPE_ECHO = r"""
+import json, os, stat
+buffer = b""
+while True:
+    chunk = os.read(3, 65536)
+    if not chunk:
+        break
+    buffer += chunk
+    while b"\0" in buffer:
+        raw, _, buffer = buffer.partition(b"\0")
+        message = json.loads(raw)
+        fifo = [stat.S_ISFIFO(os.fstat(fd).st_mode) for fd in (3, 4)]
+        os.write(4, json.dumps({"method": "Page.loadEventFired", "params": {}}).encode() + b"\0")
+        os.write(4, json.dumps({"id": message["id"], "result": {"echo": message["params"], "fifo": fifo}}).encode() + b"\0")
+"""
+
+
+@contextlib.contextmanager
+def _host_descriptors():
+    """Hold this process's own files on descriptors 3 and 4, as a host holding a lock file does."""
+    import fcntl
+    with tempfile.TemporaryDirectory() as tmp:
+        saved = {}
+        for fd in (3, 4):
+            try:
+                saved[fd] = (fcntl.fcntl(fd, fcntl.F_DUPFD_CLOEXEC, 10), os.get_inheritable(fd))
+            except OSError:
+                saved[fd] = None
+        identities = {}
+        try:
+            for fd in (3, 4):
+                own = os.open(str(Path(tmp) / f"host-{fd}"), os.O_RDWR | os.O_CREAT, 0o600)
+                if own != fd:
+                    os.dup2(own, fd, inheritable=False)
+                    os.close(own)
+                status = os.fstat(fd)
+                identities[fd] = (status.st_dev, status.st_ino)
+            yield identities
+        finally:
+            for fd, copy in saved.items():
+                if copy is None:
+                    with contextlib.suppress(OSError):
+                        os.close(fd)
+                else:
+                    os.dup2(copy[0], fd, inheritable=copy[1])
+                    os.close(copy[0])
+
+
+@contextlib.contextmanager
+def _watching(identities):
+    """Record every moment descriptors 3 and 4 stop being the host's own files."""
+    import threading
+    import time
+    moved, stop = [], threading.Event()
+
+    def watch():
+        while not stop.is_set():
+            for fd, identity in identities.items():
+                try:
+                    status = os.fstat(fd)
+                    now = (status.st_dev, status.st_ino)
+                except OSError:
+                    now = None
+                if now != identity:
+                    moved.append((fd, now))
+            time.sleep(0.0005)
+
+    watcher = threading.Thread(target=watch, daemon=True)
+    watcher.start()
+    try:
+        yield moved
+    finally:
+        stop.set()
+        watcher.join()
+
+
+class DevToolsPipeCase(unittest.TestCase):
+    """Each renderer gets its own pipe on its own fds 3 and 4; the exporting process's fds 3 and 4 are never touched."""
+
+    def test_concurrent_pipes_stay_separate_and_leave_the_host_descriptors_alone(self):
+        import time
+        from concurrent.futures import ThreadPoolExecutor
+        from champollion.export import pdf as pdfmod
+
+        def converse(index):
+            pipe = pdfmod.DevToolsPipe(sys.executable, ["-I", "-c", PIPE_ECHO], time.monotonic() + 60)
+            try:
+                return [pipe.call("Echo.say", {"who": index, "turn": turn}) for turn in range(20)]
+            finally:
+                pipe.close()
+
+        with _host_descriptors() as identities, _watching(identities) as moved:
+            with ThreadPoolExecutor(8) as pool:
+                answers = list(pool.map(converse, range(16)))
+            after = {fd: (os.fstat(fd).st_dev, os.fstat(fd).st_ino) for fd in identities}
+        self.assertEqual(moved, [])
+        self.assertEqual(after, identities)
+        for index, replies in enumerate(answers):
+            self.assertEqual([reply["echo"] for reply in replies], [{"who": index, "turn": turn} for turn in range(20)])
+            self.assertTrue(all(reply["fifo"] == [True, True] for reply in replies))
+
+    def test_a_renderer_that_exits_is_a_retried_engine_failure(self):
+        import time
+        from champollion.export import pdf as pdfmod
+        pipe = pdfmod.DevToolsPipe(sys.executable, ["-I", "-c", "pass"], time.monotonic() + 30)
+        try:
+            time.sleep(1)   # gone before the first command, so writing it meets a closed pipe
+            with self.assertRaises(ChampollionError) as caught:
+                pipe.call("Echo.say")
+        finally:
+            pipe.close()
+        self.assertIn(caught.exception.cause, pdfmod.RETRIED)
+
+    def test_a_renderer_that_cannot_start_is_missing_not_retried(self):
+        import time
+        from champollion.export import pdf as pdfmod
+        with self.assertRaises(ChampollionError) as caught:
+            pdfmod.DevToolsPipe("/nonexistent/champollion-chrome", [], time.monotonic() + 5)
+        self.assertEqual(caught.exception.cause, "ENGINE-MISSING")
+        self.assertNotIn("ENGINE-MISSING", pdfmod.RETRIED)
+
+
+@unittest.skipUnless(_chrome(), "Chrome/Chromium not installed")
+@unittest.skipUnless(importlib.util.find_spec("fontTools"), "fonttools not installed (needed to build the cover font)")
+class ConcurrentCoverCase(unittest.TestCase):
+    """Covers rendered at the same time, as a consumer's parallel build does, are the cover rendered alone."""
+
+    def test_concurrent_cover_renders_are_byte_identical(self):
+        from concurrent.futures import ThreadPoolExecutor
+        from champollion.export import pdf as pdfmod
+        chrome = _chrome()
+        with tempfile.TemporaryDirectory() as tmp:
+            page = COVER_PAGE % _cover_font(tmp).as_uri()
+
+            def shot(_=None):
+                return hashlib.sha256(pdfmod.html_to_png(page, chrome, 576, 300, 2.5, attempts=1)).hexdigest()
+
+            alone = shot()
+            with _host_descriptors() as identities, _watching(identities) as moved:
+                with ThreadPoolExecutor(4) as pool:
+                    together = list(pool.map(shot, range(8)))
+        self.assertEqual(moved, [])
+        self.assertEqual(together, [alone] * 8)
+
+    def test_concurrent_builds_of_a_webfont_book_are_byte_identical(self):
+        from concurrent.futures import ThreadPoolExecutor
+        with tempfile.TemporaryDirectory() as tmp:
+            font = _cover_font(tmp)
+            css = Path(tmp) / "fonts.css"
+            css.write_text('@font-face{font-family:"Cormorant Garamond";font-style:italic;font-weight:400;'
+                           f'src:url({font.as_uri()})}}\n', encoding="utf-8")
+            work = write(tmp, "chaptered.md", CHAPTERS)
+
+            def build(name):
+                files = export_book(work, "musean", ["epub"], str(Path(tmp) / name),
+                                    Options(unit_noun="Chapter", font_css=str(css)))
+                return hashlib.sha256(Path(files[0]["path"]).read_bytes()).hexdigest()
+
+            alone = build("alone")
+            with ThreadPoolExecutor(3) as pool:
+                together = list(pool.map(build, ("one", "two", "three")))
+        self.assertEqual(together, [alone] * 3)
 
 
 @unittest.skipUnless(_chrome(), "Chrome/Chromium not installed")

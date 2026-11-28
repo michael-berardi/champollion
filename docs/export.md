@@ -36,7 +36,11 @@ The cover is captured only after the page reports that its own fonts are loaded:
 cannot photograph the fallback face in a font's place, and two builds of unchanged sources keep the
 same cover bytes and so the same EPUB bytes. A page that never reports its fonts fails with
 `ENGINE-FONTS` rather than shipping a cover set in a substitute face. The capture drives Chrome over
-its DevTools pipe, so no port is opened and nothing listens.
+its DevTools pipe, so no port is opened and nothing listens. The pipe pair reaches Chrome as its own
+fds 3 and 4 through `posix_spawn` file actions, so the exporting process's descriptors are never
+touched and covers rendered on several threads at once keep separate pipes and identical bytes. A
+`CHAMPOLLION_CHROME` wrapper must pass fds 3 and 4 through to Chrome (a shell `exec` does). The
+renderer is ended by closing its pipe, and only what is still running ten seconds later is killed.
 
 The date normalizer accepts Chrome's supported classic, single-revision PDF metadata representation. Unsupported or malformed metadata fails with `ENGINE-PDF-METADATA` rather than producing a PDF with guessed dates; incomplete PDFs or missing cross-reference tables fail with `ENGINE-FAILED`.
 

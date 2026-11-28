@@ -4,6 +4,24 @@ Changes are recorded in [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
 Champollion enforces mechanical requirements and records judgement (VER-1). It does not translate or certify sense. The dated 1.0.0 entry records release contents, not approval to publish; SPEC.md remains a working specification until publication is approved.
 
+## [1.10.4] - 2026-11-28
+
+### Fixed
+
+- Covers rendered at the same time no longer break each other. 1.10.3 handed Chrome its DevTools pipe by pointing this process's own fds 3 and 4 at it with `dup2` around the launch, so two covers started on two threads at once swapped or closed each other's pipe: `BrokenPipeError`, `EBADF`, or one thread driving another thread's browser (`No target with given id found`). The same `dup2` also briefly replaced whatever the exporting process itself held on fd 3 or 4; a consumer's lock file there was closed and reopened under it. The renderer is now started with `posix_spawn` file actions that map the pipe pair onto fds 3 and 4 in the child alone. This process's descriptors are never touched, and each cover keeps its own pipe however many render at once.
+- A renderer that exits before reading a command, or a pipe that cannot be read, raises the retried `ENGINE-FAILED` instead of a bare `BrokenPipeError` or `OSError` that skipped the retry.
+- A cover page that Chrome could not open (`Page.navigate` reports `errorText`) fails with `ENGINE-FAILED` instead of capturing Chrome's error page as the cover, and a font wait that throws fails with `ENGINE-FONTS` instead of capturing at once.
+
+### Changed
+
+- Shutting the renderer down hangs up first: closing the command pipe is the protocol's own end, so Chrome exits on that EOF, and only what is still running after ten seconds is stopped with `SIGKILL` on its process group. A wrapper that relays the pipe to a browser it starts elsewhere (`ut-detach --pipe`, for one) can therefore end it cleanly, which a signal to this process group cannot do. A `CHAMPOLLION_CHROME` wrapper must pass fds 3 and 4 through to Chrome (a shell `exec` does); one that starts Chrome without them cannot render covers.
+- `test_export.py` adds a stand-in browser that answers over fds 3 and 4: sixteen pipes on eight threads must each get their own answers while this process's fds 3 and 4 stay its own files throughout, and a renderer that exits or cannot start must raise the named errors. With Chrome, eight covers rendered on four threads must equal a cover rendered alone byte for byte, and three concurrent builds of a book with a web-font cover must equal a build made alone.
+
+### Migration
+
+- No protocol, profile, rule ID, CLI flag, report field or cover byte changed: a 1.10.3 cover and a 1.10.4 cover of the same page are identical. Re-vendor v1.10.4 to build covers in parallel again; consumers that serialized cover builds to avoid the 1.10.3 race can drop that.
+- Rollback: re-vendor v1.10.3 and build covers one at a time.
+
 ## [1.10.3] - 2026-11-28
 
 ### Fixed

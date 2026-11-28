@@ -115,46 +115,59 @@ COVER_WAIT_SCRIPT = """new Promise(function (done) {
 })"""
 
 
+def _above_four(fd: int) -> int:
+    """The same pipe end on a descriptor above 4 (closing the original), so that mapping one end onto
+    the child's 3 or 4 can neither replace the other end first nor be a no-op that leaves close-on-exec set."""
+    import fcntl   # POSIX only, like the rest of the export path; checks still import this module on Windows
+    if fd > 4:
+        return fd
+    moved = fcntl.fcntl(fd, fcntl.F_DUPFD_CLOEXEC, 5)
+    os.close(fd)
+    return moved
+
+
 class DevToolsPipe:
     """One Chrome process driven over ``--remote-debugging-pipe``: commands on fd 3, replies on fd 4.
 
     A pipe pair, not a debugging port: the renderer opens no socket and listens on nothing, so the
     offline flags above stay true and no other process can reach the browser rendering the book.
+
+    The pair becomes the child's fds 3 and 4 through ``posix_spawn`` file actions, which run in the
+    child alone. This process's own fds 3 and 4 (a caller's lock file, say) are never closed, replaced
+    or borrowed, and covers rendered on several threads at once each get their own pipe. Every other
+    descriptor this process opened is close-on-exec, so the renderer inherits none of them.
     """
+
+    CLOSE_GRACE = 10.0
 
     def __init__(self, chrome: str, args: Sequence[str], deadline: float) -> None:
         self.deadline = deadline
-        self.proc: Optional[subprocess.Popen] = None
+        self.pid: Optional[int] = None
         self._buffer = b""
         self._ident = 0
-        requests_read, self._requests = os.pipe()
-        self._replies, replies_write = os.pipe()
-        # Chrome reads its protocol from fd 3 and writes it to fd 4, so hand those numbers to the
-        # child. This process's own descriptors are put back as soon as the child has its copies.
-        saved = {}
-        for fd in (3, 4):
-            try:
-                saved[fd] = os.dup(fd)
-            except OSError:
-                saved[fd] = None
+        self._requests = self._replies = -1
+        commands = replies = -1
         try:
-            os.dup2(requests_read, 3, inheritable=True)
-            os.dup2(replies_write, 4, inheritable=True)
-            # Nothing here reads the renderer's stderr, and a full pipe would block it.
-            self.proc = subprocess.Popen([chrome, *args], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                                         start_new_session=True, pass_fds=(3, 4), env=_chrome_env())
+            commands, self._requests = os.pipe()
+            self._replies, replies = os.pipe()
+            commands = _above_four(commands)
+            replies = _above_four(replies)
+            # Nothing here reads the renderer's output, and a full pipe would block it.
+            actions = [(os.POSIX_SPAWN_OPEN, 0, os.devnull, os.O_RDONLY, 0),
+                       (os.POSIX_SPAWN_OPEN, 1, os.devnull, os.O_WRONLY, 0),
+                       (os.POSIX_SPAWN_OPEN, 2, os.devnull, os.O_WRONLY, 0),
+                       (os.POSIX_SPAWN_DUP2, commands, 3),
+                       (os.POSIX_SPAWN_DUP2, replies, 4)]
+            # Its own process group, so a hang takes the renderer's helper processes down with it.
+            self.pid = os.posix_spawnp(chrome, [chrome, *args], _chrome_env(), file_actions=actions, setpgroup=0)
         except OSError as exc:
             self._dispose()
             raise ChampollionError(f"cannot start {chrome} for the cover: {exc}", cause="ENGINE-MISSING") from exc
         finally:
-            for fd, copy in saved.items():
-                if copy is None:
+            # The child holds its own copies now; ours would keep its end of each pipe from ever closing.
+            for fd in (commands, replies):
+                if fd >= 0:
                     os.close(fd)
-                else:
-                    os.dup2(copy, fd)
-                    os.close(copy)
-            os.close(requests_read)
-            os.close(replies_write)
 
     def call(self, method: str, params: Optional[Dict] = None, session_id: Optional[str] = None,
              cause: Optional[str] = None) -> Dict:
@@ -164,8 +177,12 @@ class DevToolsPipe:
         if session_id:
             message["sessionId"] = session_id
         data = json.dumps(message).encode("utf-8") + b"\0"
-        while data:
-            data = data[os.write(self._requests, data):]
+        try:
+            while data:
+                data = data[os.write(self._requests, data):]
+        except OSError as exc:
+            raise ChampollionError(f"chrome closed the DevTools pipe before {method}: {exc}",
+                                   cause="ENGINE-FAILED") from exc
         while True:
             reply = self._receive(cause)
             if reply.get("id") != self._ident:
@@ -178,35 +195,61 @@ class DevToolsPipe:
     def _receive(self, cause: Optional[str]) -> Dict:
         while b"\0" not in self._buffer:
             left = self.deadline - time.monotonic()
-            if left <= 0 or not select.select([self._replies], [], [], max(left, 0))[0]:
-                raise ChampollionError("chrome did not answer within the render timeout", cause=cause or "ENGINE-TIMEOUT")
-            chunk = os.read(self._replies, 65536)
+            try:
+                if left <= 0 or not select.select([self._replies], [], [], max(left, 0))[0]:
+                    raise ChampollionError("chrome did not answer within the render timeout",
+                                           cause=cause or "ENGINE-TIMEOUT")
+                chunk = os.read(self._replies, 65536)
+            except OSError as exc:
+                raise ChampollionError(f"cannot read the DevTools pipe: {exc}", cause="ENGINE-FAILED") from exc
             if not chunk:
                 raise ChampollionError("chrome closed the DevTools pipe before answering", cause=cause or "ENGINE-FAILED")
             self._buffer += chunk
         raw, _, self._buffer = self._buffer.partition(b"\0")
-        return json.loads(raw)
+        try:
+            return json.loads(raw)
+        except ValueError as exc:
+            raise ChampollionError(f"chrome sent an unreadable DevTools message: {exc}", cause="ENGINE-FAILED") from exc
 
     def _dispose(self) -> None:
-        for fd in (self._requests, self._replies):
-            try:
-                os.close(fd)
-            except OSError:
-                pass
+        for name in ("_requests", "_replies"):
+            fd = getattr(self, name)
+            setattr(self, name, -1)
+            if fd >= 0:
+                with contextlib.suppress(OSError):
+                    os.close(fd)
 
     def close(self) -> None:
+        """Hang up, give the renderer a bounded moment to end on that EOF, then stop what is left.
+
+        EOF on fd 3 is the protocol's own shutdown, and the only one a relay that runs the browser
+        elsewhere (ut-detach --pipe, for one) can pass on; a signal reaches this process group only.
+        """
+        if self._requests >= 0:
+            with contextlib.suppress(OSError):
+                os.close(self._requests)
+            self._requests = -1
+        if self.pid is not None:
+            # Keep reading so a renderer still writing cannot block on a full pipe. EOF means every
+            # writer of fd 4 has closed it, which a browser does as it exits.
+            grace = time.monotonic() + self.CLOSE_GRACE
+            with contextlib.suppress(OSError):
+                while True:
+                    left = grace - time.monotonic()
+                    if left <= 0 or not select.select([self._replies], [], [], left)[0]:
+                        break
+                    if not os.read(self._replies, 65536):
+                        break
+            # The child is not reaped yet, so its process group id cannot have been reused.
+            try:
+                os.killpg(self.pid, signal.SIGKILL)
+            except (ProcessLookupError, PermissionError):
+                with contextlib.suppress(ProcessLookupError, PermissionError):
+                    os.kill(self.pid, signal.SIGKILL)
+            with contextlib.suppress(ChildProcessError):
+                os.waitpid(self.pid, 0)
+            self.pid = None
         self._dispose()
-        if self.proc is None:
-            return
-        try:
-            os.killpg(self.proc.pid, signal.SIGKILL)
-        except (ProcessLookupError, PermissionError):
-            self.proc.kill()
-        try:
-            self.proc.communicate(timeout=15)
-        except subprocess.TimeoutExpired:
-            self.proc.kill()
-            self.proc.communicate()
 
 
 def html_to_pdf(html_text: str, out_pdf: str, chrome: str, timeout: int = 600, attempts: int = 2) -> None:
@@ -376,10 +419,17 @@ def _screenshot(html_text: str, chrome: str, width: int, height: int, scale: flo
             devtools.call("Emulation.setDeviceMetricsOverride",
                           {"width": width, "height": height, "deviceScaleFactor": scale, "mobile": False},
                           session_id=session)
-            devtools.call("Page.navigate", {"url": page.as_uri()}, session_id=session)
+            # A navigation that fails still commits Chrome's error page, which must never become a cover.
+            navigated = devtools.call("Page.navigate", {"url": page.as_uri()}, session_id=session)
+            if navigated.get("errorText"):
+                raise ChampollionError(f"chrome could not open the cover page: {navigated['errorText']}",
+                                       cause="ENGINE-FAILED")
             try:
-                devtools.call("Runtime.evaluate", {"expression": COVER_WAIT_SCRIPT, "awaitPromise": True,
-                                                   "returnByValue": True}, session_id=session, cause="ENGINE-FONTS")
+                waited = devtools.call("Runtime.evaluate", {"expression": COVER_WAIT_SCRIPT, "awaitPromise": True,
+                                                            "returnByValue": True}, session_id=session, cause="ENGINE-FONTS")
+                if "exceptionDetails" in waited:
+                    detail = waited["exceptionDetails"].get("text", "exception")
+                    raise ChampollionError(f"the cover page did not report its fonts: {detail}", cause="ENGINE-FONTS")
                 data = devtools.call("Page.captureScreenshot",
                                      {"format": "png", "fromSurface": True, "captureBeyondViewport": False},
                                      session_id=session)["data"]
