@@ -42,6 +42,8 @@ touched and covers rendered on several threads at once keep separate pipes and i
 `CHAMPOLLION_CHROME` wrapper must pass fds 3 and 4 through to Chrome (a shell `exec` does). The
 renderer is ended by closing its pipe, and only what is still running ten seconds later is killed.
 
+Chrome's tagged PDF names table header cells with run-time node numbers (`(node00002921)`), which can differ by one between two prints of the same page; the print path renumbers them by rank from `node00000001`, keeping header references, the structure tree's `/IDTree` order and every byte offset, so a book with printed tables keeps its PDF bytes.
+
 The date normalizer accepts Chrome's supported classic, single-revision PDF metadata representation. Unsupported or malformed metadata fails with `ENGINE-PDF-METADATA` rather than producing a PDF with guessed dates; incomplete PDFs or missing cross-reference tables fail with `ENGINE-FAILED`.
 
 ## Layout decisions the exporter makes

@@ -4,6 +4,21 @@ Changes are recorded in [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
 Champollion enforces mechanical requirements and records judgement (VER-1). It does not translate or certify sense. The dated 1.0.0 entry records release contents, not approval to publish; SPEC.md remains a working specification until publication is approved.
 
+## [1.10.5] - 2026-11-28
+
+### Fixed
+
+- Two prints of a book with printed tables now keep the same PDF bytes. Chrome's tagged PDF names each table header cell with a structure id, `(node` + eight digits + `)`: the header's `/ID`, the data cells' `/Headers` and the keys and `/Limits` of the structure tree's `/IDTree`. Chrome takes those numbers from node counters it assigns while it runs, so two clean builds of the same 800-page book numbered them one apart (`node00002921` and `node00002922`) and differed in nothing else. The print path now renumbers them by rank, the smallest becoming `node00000001`: every reference stays paired, the name tree keeps its key order and true `/Limits`, and at the same width every byte offset and the cross-reference table are unchanged.
+
+### Changed
+
+- `test_export.py` covers the renumbering on a synthetic tagged PDF (two prints numbered apart become equal, length and offsets kept, header references and the `/IDTree` keys and `/Limits` renumbered together, idempotent, an untagged PDF untouched) and with Chrome (a printed table with a header row gets ids from `node00000001` and two prints are equal).
+
+### Migration
+
+- No protocol, profile, rule ID, CLI flag, report field or cover changed. PDFs whose tables have header cells change bytes once (their structure ids are renumbered); every other PDF differs from its 1.10.4 print only in the Champollion version its document information names, and every EPUB is byte-identical to 1.10.4. Re-vendor v1.10.5 and rebuild the PDFs that print tables.
+- Rollback: re-vendor v1.10.4.
+
 ## [1.10.4] - 2026-11-28
 
 ### Fixed

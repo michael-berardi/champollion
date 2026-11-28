@@ -275,9 +275,34 @@ def _print(html_text: str, out_pdf: str, chrome: str, timeout: int) -> None:
         if not tmp_pdf.is_file() or tmp_pdf.stat().st_size < 1000:
             raise ChampollionError("chrome produced no PDF", cause="ENGINE-FAILED")
         _normalize_chrome_dates(tmp_pdf)
+        _normalize_structure_ids(tmp_pdf)
         mkdir_private(Path(out_pdf).parent)
         shutil.move(str(tmp_pdf), out_pdf)
         restrict_file(out_pdf)
+
+
+# Chrome's tagged PDF gives each table header cell a structure id, "(node" + eight digits + ")":
+# the header's /ID, the data cells' /Headers, and the keys and /Limits of the structure tree's
+# /IDTree. The ids are node numbers Chrome assigns while it runs, so two prints of the same page
+# can number them one apart (an 800-page book with printed tables differed in nothing else). They
+# are renumbered by rank, the smallest becoming 1: references stay paired, the name tree stays in
+# key order with true /Limits, and at the same width every byte offset, so the cross-reference
+# table, is unchanged.
+STRUCTURE_ID = re.compile(rb"\(node(\d{8})\)")
+
+
+def _normalize_structure_ids(pdf: Path) -> None:
+    """Number Chrome's table-header structure ids 1, 2, 3... in their own order."""
+    data = pdf.read_bytes()
+    rank = {old: b"%08d" % number for number, old in enumerate(sorted(set(STRUCTURE_ID.findall(data))), 1)}
+    if not rank:
+        return
+    result = STRUCTURE_ID.sub(lambda match: b"(node" + rank[match.group(1)] + b")", data)
+    if len(result) != len(data):
+        raise ChampollionError(f"{pdf}: renumbering structure ids changed the PDF length", cause="ENGINE-PDF-METADATA")
+    if result != data:
+        pdf.write_bytes(result)
+        restrict_file(pdf)
 
 
 def _normalize_chrome_dates(pdf: Path) -> None:

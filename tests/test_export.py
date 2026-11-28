@@ -648,6 +648,32 @@ class PdfMetadataCase(unittest.TestCase):
                 pdfmod.set_info(str(path), {"Title": "Test"})
             self.assertEqual(paths[0].read_bytes(), paths[1].read_bytes())
 
+    def test_table_header_structure_ids_are_numbered_by_rank(self):
+        from champollion.export import pdf as pdfmod
+
+        def tagged(first):
+            ids = [b"(node%08d)" % (first + step) for step in (0, 2, 7)]
+            elements = b"".join(b"%d 0 obj\n<</Type /StructElem /S /TH /ID %s>>\nendobj\n" % (4 + n, i) for n, i in enumerate(ids))
+            cells = b"7 0 obj\n<</Type /StructElem /S /TD /A [<</O /Table /Headers [%s %s]>>]>>\nendobj\n" % (ids[2], ids[0])
+            tree = b"8 0 obj\n<</Limits [%s %s]\n/Names [%s 4 0 R %s 5 0 R %s 6 0 R]>>\nendobj\n" % (ids[0], ids[2], *ids)
+            return b"%PDF-1.4\n" + elements + cells + tree + b"trailer\n<</Size 9>>\nstartxref\n9\n%%EOF\n"
+
+        with tempfile.TemporaryDirectory() as tmp:
+            paths = [Path(tmp) / name for name in ("a.pdf", "b.pdf", "plain.pdf")]
+            for path, data in zip(paths, (tagged(2921), tagged(2922), _synthetic_chrome_pdf())):
+                path.write_bytes(data)
+                pdfmod._normalize_structure_ids(path)
+            normalized = paths[0].read_bytes()
+            self.assertEqual(normalized, paths[1].read_bytes())        # one print numbered one apart from the other
+            self.assertEqual(len(normalized), len(tagged(2921)))       # every byte offset kept
+            self.assertEqual(re.findall(rb"/ID \(node(\d{8})\)", normalized), [b"00000001", b"00000002", b"00000003"])
+            self.assertIn(b"/Headers [(node00000003) (node00000001)]", normalized)
+            self.assertIn(b"/Limits [(node00000001) (node00000003)]", normalized)
+            self.assertIn(b"/Names [(node00000001) 4 0 R (node00000002) 5 0 R (node00000003) 6 0 R]", normalized)
+            pdfmod._normalize_structure_ids(paths[0])
+            self.assertEqual(paths[0].read_bytes(), normalized)
+            self.assertEqual(paths[2].read_bytes(), _synthetic_chrome_pdf())   # nothing to renumber, nothing written
+
     def test_malformed_metadata_is_named_and_never_partially_written(self):
         from champollion.export import pdf as pdfmod
         valid = _synthetic_chrome_pdf()
@@ -1110,6 +1136,22 @@ class ConcurrentCoverCase(unittest.TestCase):
 
 @unittest.skipUnless(_chrome(), "Chrome/Chromium not installed")
 class PdfCase(unittest.TestCase):
+    def test_printed_table_headers_get_rank_numbered_structure_ids(self):
+        from champollion.export import pdf as pdfmod
+        page = ("<!doctype html><html><head><meta charset='utf-8'/></head><body><p>Before.</p>"
+                "<table><thead><tr><th>Term</th><th>Sense</th></tr></thead>"
+                "<tbody><tr><td>a</td><td>b</td></tr><tr><td>c</td><td>d</td></tr></tbody></table></body></html>")
+        with tempfile.TemporaryDirectory() as tmp:
+            printed = []
+            for name in ("one.pdf", "two.pdf"):
+                pdfmod.html_to_pdf(page, str(Path(tmp) / name), _chrome(), timeout=120)
+                printed.append((Path(tmp) / name).read_bytes())
+        ids = re.findall(rb"\(node(\d{8})\)", printed[0])
+        if not ids:
+            self.skipTest("this Chrome does not tag table headers in its PDFs")
+        self.assertEqual(sorted(set(ids)), [b"%08d" % n for n in range(1, len(set(ids)) + 1)])
+        self.assertEqual(printed[0], printed[1])
+
     def test_cli_exports_a_pdf_and_epub(self):
         with tempfile.TemporaryDirectory() as tmp:
             work = write(tmp, "chaptered.md", CHAPTERS)
